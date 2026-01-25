@@ -1,0 +1,47 @@
+<?php
+
+if ( ! defined( 'ABSPATH' ) ) {
+	exit; // Exit if accessed directly.
+}
+if ( class_exists( 'WSP_Store_Meta' ) ) {
+	return;
+}
+
+/**
+ * WSP Store Meta Class.
+ */
+class WSP_Store_Meta {
+
+	public function add_meta_boxes() {
+		add_meta_box(
+			'pickup_store_details',
+			__( 'Store Details', 'woo-store-plugin' ),
+			array( $this, 'render_meta_box' ),
+			'pickup_store'
+		);
+	}
+
+	public function render_meta_box( $post ) {
+		wp_nonce_field( 'wsp_store_meta', 'wsp_store_meta_nonce' );
+		$address = get_post_meta( $post->ID, '_store_address', true );
+		?>
+		<p>
+			<label><strong>Store Address</strong></label>
+			<textarea name="store_address" id="width:100%">
+				<?php echo esc_textarea( $address ); ?>
+			</textarea>
+		</p>
+		<?php
+	}
+
+	public function save_meta( $post_id ) {
+		if ( ! isset( $_POST['wsp_store_meta_nonce'] ) ) return;
+        if ( ! wp_verify_nonce( $_POST['wsp_store_meta_nonce'], 'wsp_store_meta' ) ) return;
+		if ( get_post_type( $post_id ) != 'pickup_store' ) return;
+
+		if ( isset( $_POST['store_address'] ) ) {
+			update_post_meta( $post_id, '_store_address', sanitize_textarea_field( $_POST['store_address'] ) );
+		}
+	}
+
+}
