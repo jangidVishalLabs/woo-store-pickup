@@ -30,7 +30,7 @@ class WSP_Store_Meta {
 		?>
 		<p>
 			<label><strong>Store Address</strong></label>
-			<textarea name="store_address" id="width:100%">
+			<textarea name="store_address" style="width:100%">
 				<?php echo esc_textarea( $address ); ?>
 			</textarea>
 		</p>

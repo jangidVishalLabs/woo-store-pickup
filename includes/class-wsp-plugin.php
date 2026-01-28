@@ -55,6 +55,16 @@ class WSP_Plugin {
 		$this->loader->add_action( 'woocommerce_thankyou', $checkout, 'display_customer_pickup_details' );
 		// My Account -> View Order
 		$this->loader->add_action( 'woocommerce_view_order', $checkout, 'display_customer_pickup_details' );
+		$this->loader->add_action(
+			'wp_ajax_wsp_get_pickup_stores',
+			$checkout,
+			'wsp_get_pickup_stores_ajax'
+		);
+		$this->loader->add_action(
+			'wp_ajax_nopriv_wsp_get_pickup_stores',
+			$checkout,
+			'wsp_get_pickup_stores_ajax'
+		);
 	}
 
 
@@ -69,7 +79,8 @@ class WSP_Plugin {
 
 		$admin_orders = new WSP_Admin_Orders();
 
-		$this->loader->add_action(
+		// HPOS (High-Performance Order Storage) Hooks
+		$this->loader->add_filter(
 			'manage_woocommerce_page_wc-orders_columns',
 			$admin_orders,
 			'add_columns'
@@ -84,23 +95,53 @@ class WSP_Plugin {
 		);
 
 		$this->loader->add_action(
-			'restrict_manage_posts',
+			'woocommerce_order_list_table_restrict_manage_orders',
 			$admin_orders,
 			'add_pickup_date_filter'
 		);
 
-		$this->loader->add_action(
-			'pre_get_posts',
+		$this->loader->add_filter(
+			'woocommerce_orders_table_query_clauses',
 			$admin_orders,
-			'filter_orders_by_pickup_date'
+			'filter_orders_by_pickup_date_hpos',
+			10,
+			2
+		);
+
+		// Legacy (Post-based Orders) Hooks - for backwards compatibility
+		$this->loader->add_filter(
+			'manage_edit-shop_order_columns',
+			$admin_orders,
+			'add_columns'
+		);
+
+		$this->loader->add_action(
+			'manage_shop_order_posts_custom_column',
+			$admin_orders,
+			'render_columns',
+			10,
+			2
+		);
+
+		$this->loader->add_action(
+			'restrict_manage_posts',
+			$admin_orders,
+			'add_pickup_date_filter_legacy'
 		);
 
 		$this->loader->add_filter(
-			'woocommerce_shop_order_search_fields',
+			'parse_query',
 			$admin_orders,
-			'enable_store_search'
+			'filter_orders_by_pickup_date_legacy'
+		);
+
+		$this->loader->add_action(
+			'woocommerce_orders_table_query_clauses',
+			$admin_orders,
+			'search_orders_by_pickup_store_hpos', 20, 2
 		);
 	}
+	
 	private function define_shipping_hooks() {
 		// Load shipping class at the right time
 		add_action(
@@ -130,6 +171,7 @@ class WSP_Plugin {
 
 		}
 	}
+	
 	private function define_email_hooks() {
 		$email_handler = new WSP_Email_Handler();
 

@@ -1,72 +1,79 @@
 jQuery(function ($) {
 
     function isStorePickupSelected() {
-        let selected = false;
-
-        $('input[name^="shipping_method"]:checked').each(function () {
-            if ($(this).val().indexOf('wsp_store_pickup') !== -1) {
-                selected = true;
-            }
-        });
-
-        return selected;
+        return $('input[name^="shipping_method"]:checked')
+            .val()
+            ?.includes('wsp_store_pickup');
     }
 
     function togglePickupFields() {
         const $fields = $('#wsp-pickup-fields');
+        if (!$fields.length) return;
 
-        if (!$fields.length) {
-            return;
-        }
-
-        if (isStorePickupSelected()) {
-            $fields.stop(true, true).slideDown();
-        } else {
-            $fields.stop(true, true).slideUp();
-        }
+        isStorePickupSelected()
+            ? $fields.slideDown()
+            : $fields.slideUp();
     }
+
+    let lastShippingMethods = '';
 
     function triggerCheckoutUpdate() {
         $(document.body).trigger('update_checkout');
     }
 
-    /* ---------------------------------------------------------
-     * Initial load
-     * --------------------------------------------------------- */
-    togglePickupFields();
+    /* Address change → AJAX zone recalculation */
+    $(document.body).on(
+    'change',
+    'select[name="billing_state"], select[name="shipping_state"], select[name="billing_country"], select[name="shipping_country"]',
+    function () {
+        $(document.body).trigger('update_checkout');
+    }
+);
 
-    /* ---------------------------------------------------------
-     * Shipping method change
-     * --------------------------------------------------------- */
-    $(document.body).on('change', 'input[name^="shipping_method"]', function () {
-        togglePickupFields();
-    });
 
-    /* ---------------------------------------------------------
-     * Address change → force zone recalculation
-     * --------------------------------------------------------- */
+    /* Shipping method change */
     $(document.body).on(
         'change',
-        'select[name="billing_state"], select[name="shipping_state"], ' +
-        'input[name="billing_postcode"], input[name="shipping_postcode"], ' +
-        'select[name="billing_country"], select[name="shipping_country"]',
-        function () {
-            triggerCheckoutUpdate();
-        }
+        'input[name^="shipping_method"]',
+        togglePickupFields
     );
+    $(document.body).on('change', 'input[name^="shipping_method"]', function () {
+    $('#wsp_store_id').prop('disabled', !isStorePickupSelected());
+});
 
-    /* ---------------------------------------------------------
-     * Checkout refreshed (zone changed)
-     * --------------------------------------------------------- */
-    $(document.body).on('updated_checkout', function () {
 
-        togglePickupFields();
+    /* After AJAX completes */
+$(document.body).on('updated_checkout', function () {
 
-        // Reset store dropdown to avoid invalid store selection
-        const $storeSelect = $('#wsp_store_id');
-        if ($storeSelect.length) {
-            $storeSelect.val('');
+    togglePickupFields();
+
+    const $storeSelect = $('#wsp_store_id');
+
+    if (!$storeSelect.length || !isStorePickupSelected()) {
+        return;
+    }
+
+    $.ajax({
+        url: wc_checkout_params.ajax_url,
+        type: 'POST',
+        data: {
+            action: 'wsp_get_pickup_stores'
+        },
+        beforeSend() {
+            $storeSelect.prop('disabled', true);
+        },
+        success(response) {
+            if (response.success) {
+                $storeSelect.html(response.data);
+            }
+        },
+        complete() {
+            $storeSelect.prop('disabled', false);
         }
     });
+});
 
+
+    /* Initial */
+    togglePickupFields();
 });

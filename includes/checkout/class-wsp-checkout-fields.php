@@ -287,6 +287,49 @@ public static function wsp_convert_google_maps_to_embed( $url, $fallback_address
 		<?php
 	}
 
+	function wsp_get_pickup_stores_ajax() {
+
+	if ( ! WC()->session ) {
+		wp_send_json_error();
+	}
+
+	$chosen = WC()->session->get( 'chosen_shipping_methods' );
+
+	if ( empty( $chosen[0] ) || strpos( $chosen[0], 'wsp_store_pickup:' ) === false ) {
+		wp_send_json_success( '<option value="">Select a store</option>' );
+	}
+
+	list( , $instance_id ) = explode( ':', $chosen[0] );
+
+	$shipping_method = WC_Shipping_Zones::get_shipping_method( $instance_id );
+
+	if ( ! $shipping_method ) {
+		wp_send_json_success( '<option value="">Select a store</option>' );
+	}
+
+	$store_ids = (array) $shipping_method->get_option( 'assigned_stores', [] );
+
+	$options = '<option value="">Select a store</option>';
+
+	if ( $store_ids ) {
+		$stores = get_posts([
+			'post_type' => 'pickup_store',
+			'post__in'  => $store_ids,
+			'post_status' => 'publish',
+		]);
+
+		foreach ( $stores as $store ) {
+			$options .= sprintf(
+				'<option value="%d">%s</option>',
+				$store->ID,
+				esc_html( $store->post_title )
+			);
+		}
+	}
+
+	wp_send_json_success( $options );
+}
+
 
 
 	
