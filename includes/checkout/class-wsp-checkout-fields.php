@@ -23,17 +23,46 @@ class WSP_Checkout_Fields {
 
 		$chosen_methods = WC()->session->get( 'chosen_shipping_methods' );
 
-		return is_array( $chosen_methods ) && in_array( 'wsp_store_pickup', $chosen_methods, true );
+		if ( empty( $chosen_methods ) || ! is_array( $chosen_methods ) ) {
+			return false;
+		}
+
+		foreach ( $chosen_methods as $method ) {
+			if ( strpos( $method, 'wsp_store_pickup' ) !== false ) {
+				return true;
+			}
+		}
+
+		return false;
 	}
+		function wsp_get_selected_pickup_stores_for_checkout() {
+		$chosen = WC()->session->get( 'chosen_shipping_methods' );
+		if ( empty( $chosen[0] ) ) {
+			return array();
+		}
+		if ( strpos( $chosen[0], 'wsp_store_pickup:' ) === false ) {
+			return array();
+		}
+		list ( $method_id, $instance_id ) = explode( ':', $chosen[0] );
+		$shipping_method                  = WC_Shipping_Zones::get_shipping_method( $instance_id );
+		if ( ! $shipping_method ) {
+			return array();
+		}
+		$assigned_stores = $shipping_method->get_option( 'assigned_stores', array() );
+		return $assigned_stores;
+	}
+
 
 	/**
 	 * Render Checkout Fields.
 	 */
 	public function render_fields( $checkout ) {
+		if ( ! $this->is_store_pickup() ) {
+			return;
+		}
 
 		echo '<div id="wsp-pickup-fields" class="wsp-checkout-fields">';
 		echo '<h3>' . esc_html__( 'Store Pickup Details', 'woo-store-plugin' ) . '</h3>';
-
 
 		// Store Dropdown
 		woocommerce_form_field(
@@ -43,7 +72,7 @@ class WSP_Checkout_Fields {
 				'class'    => array( 'form-row-wide' ),
 				'label'    => esc_html__( 'Select Store Location', 'woo-store-plugin' ),
 				'required' => true,
-				'options'  => $this->get_store_options(),
+				'options'  => $this->get_store_options_with_address(),
 			),
 			$checkout->get_value( 'wsp_store_id' )
 		);
@@ -52,10 +81,10 @@ class WSP_Checkout_Fields {
 		woocommerce_form_field(
 			'wsp_pickup_date',
 			array(
-				'type'        => 'date',
-				'class'       => array( 'form-row-wide' ),
-				'label'       => esc_html__( 'Preferred Pickup Date', 'woo-store-plugin' ),
-				'required'    => true,
+				'type'              => 'date',
+				'class'             => array( 'form-row-wide' ),
+				'label'             => esc_html__( 'Preferred Pickup Date', 'woo-store-plugin' ),
+				'required'          => true,
 				'custom_attributes' => array(
 					'min' => date( 'Y-m-d', strtotime( '+1 day' ) ),
 				),
@@ -66,29 +95,40 @@ class WSP_Checkout_Fields {
 		echo '</div>';
 	}
 
+
+
 	/**
 	 * Get Active Store Options.
 	 */
-	private function get_store_options() {
+	private function get_store_options_with_address() {
 
-		$stores = get_posts(
-			array(
-				'post_type'      => 'pickup_store',
-				'posts_per_page' => -1,
-				'post_status'    => 'publish',
-			)
-		);
+		$store_ids = $this->wsp_get_selected_pickup_stores_for_checkout();
 
 		$options = array(
 			'' => esc_html__( 'Select a store', 'woo-store-plugin' ),
 		);
 
+		if ( empty( $store_ids ) ) {
+			return $options;
+		}
+
+		$stores = get_posts(
+			array(
+				'post_type'      => 'pickup_store',
+				'post__in'       => $store_ids,
+				'posts_per_page' => -1,
+				'post_status'    => 'publish',
+			)
+		);
+
 		foreach ( $stores as $store ) {
+			$address = get_post_meta( $store->ID, '_store_address', true );
 			$options[ $store->ID ] = $store->post_title;
 		}
 
 		return $options;
 	}
+
 
 	/**
 	 * Validate Checkout Fields.
@@ -117,15 +157,13 @@ class WSP_Checkout_Fields {
 	/**
 	 * Save order meta.
 	 */
-	public function save_fields( $order_id ) {
+	public function save_fields( $order ) {
 
 		if ( ! $this->is_store_pickup() ) {
 			return;
 		}
 
-		$order = wc_get_order( $order_id );
-
-		if ( ! $order ) {
+		if ( ! $order instanceof WC_Order ) {
 			return;
 		}
 
@@ -140,22 +178,15 @@ class WSP_Checkout_Fields {
 		$order->update_meta_data( '_pickup_store_id', $store_id );
 		$order->update_meta_data( '_pickup_date', $date );
 
-		// Snapshot store details
 		$order->update_meta_data( '_pickup_store_name', get_the_title( $store_id ) );
 		$order->update_meta_data( '_pickup_store_address', get_post_meta( $store_id, '_store_address', true ) );
 		$order->update_meta_data( '_pickup_store_map', get_post_meta( $store_id, '_store_map_url', true ) );
-
-		$order->save();
 	}
-	/**
-	 * Store pickup details in admin order page.
-	 */
 	public static function display_admin_order_pickup_details( $order ) {
-		error_log( 'Displaying pickup details in admin order page.' );
-		$store_name	= $order->get_meta( '_pickup_store_name' );
+		$store_name    = $order->get_meta( '_pickup_store_name' );
 		$store_address = $order->get_meta( '_pickup_store_address' );
 		$pickup_date   = $order->get_meta( '_pickup_date' );
-		$map_url	   = $order->get_meta( '_pickup_store_map' );
+		$map_url       = $order->get_meta( '_pickup_store_map' );
 
 		if ( $store_name ) {
 			echo '<p><strong>' . esc_html__( 'Pickup Store:', 'woo-store-plugin' ) . '</strong> ' . esc_html( $store_name ) . '</p>';
@@ -172,6 +203,34 @@ class WSP_Checkout_Fields {
 			echo '<p><strong>' . esc_html__( 'Store Location:', 'woo-store-plugin' ) . '</strong> <a href="' . esc_url( $map_url ) . '" target="_blank">' . esc_html__( 'View on Map', 'woo-store-plugin' ) . '</a></p>';
 		}
 	}
+/**
+ * Convert any Google Maps link into an embeddable iframe URL.
+ */
+public static function wsp_convert_google_maps_to_embed( $url, $fallback_address = '' ) {
+
+	if ( empty( $url ) && empty( $fallback_address ) ) {
+		return '';
+	}
+
+	// 1. Already embed URL → use directly
+	if ( strpos( $url, 'google.com/maps/embed' ) !== false ) {
+		return $url;
+	}
+
+	// 2. Try extracting coordinates from full maps URL
+	if ( ! empty( $url ) && preg_match( '/@(-?\d+\.\d+),(-?\d+\.\d+)/', $url, $m ) ) {
+		return 'https://www.google.com/maps?q=' . $m[1] . ',' . $m[2] . '&output=embed';
+	}
+
+	// 3. Short URLs (maps.app.goo.gl / goo.gl) → USE ADDRESS
+	if ( ! empty( $fallback_address ) ) {
+		return 'https://www.google.com/maps?q=' . urlencode( $fallback_address ) . '&output=embed';
+	}
+
+	// 4. Absolute fallback → do not embed
+	return '';
+}
+
 
 	/**
 	 * Display pickup details for customer
@@ -181,10 +240,10 @@ class WSP_Checkout_Fields {
 		if ( ! $order ) {
 			return;
 		}
-		$store_name	= $order->get_meta( '_pickup_store_name' );
+		$store_name    = $order->get_meta( '_pickup_store_name' );
 		$store_address = $order->get_meta( '_pickup_store_address' );
 		$pickup_date   = $order->get_meta( '_pickup_date' );
-		$map_url	   = $order->get_meta( '_pickup_store_map' );
+		$map_url       = $order->get_meta( '_pickup_store_map' );
 
 		if ( empty( $store_name ) ) {
 			return;
@@ -205,16 +264,31 @@ class WSP_Checkout_Fields {
 				<?php echo esc_html( $pickup_date ); ?>
 			</p>
 			<?php if ( $map_url ) : ?>
-				<p>
-					<strong><?php esc_html_e( 'Store Location:', 'woo-store-plugin' ); ?></strong>
-					<a href="<?php echo esc_url( $map_url ); ?>" target="_blank">
-						<?php esc_html_e( 'View on Map', 'woo-store-plugin' ); ?>
-					</a>
-				</p>
-			<?php endif; ?>
+		<?php 	$embed_url = self::wsp_convert_google_maps_to_embed( $map_url, $store_address ); ?>
+            <div style="margin-top:15px;">
+                <strong><?php esc_html_e( 'Store Location:', 'woo-store-plugin' ); ?></strong>
+                <iframe
+                    src="<?php echo esc_url( $embed_url ); ?>"
+                    width="100%"
+                    height="300"
+                    style="border:0; margin-top:10px;"
+                    loading="lazy"
+                    referrerpolicy="no-referrer-when-downgrade">
+                </iframe>
+				<p style="margin-top:8px;">
+				<a href="<?php echo esc_url( $map_url ); ?>" target="_blank" rel="noopener">
+					<?php esc_html_e( 'Open in Google Maps', 'woo-store-plugin' ); ?>
+				</a>
+			</p>
+            </div>
+        <?php endif; ?>
 		</section>
 
 		<?php
 	}
+
+
+
+	
 }
 

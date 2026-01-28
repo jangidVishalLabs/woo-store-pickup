@@ -3,11 +3,11 @@ if ( ! defined( 'ABSPATH' ) ) {
 	exit;
 }
 
-if ( class_exists( 'WSP_EMAIL_Handler' ) ) {
+if ( class_exists( 'WSP_Email_Handler' ) ) {
 	return;
 }
 
-class WSP_EMAIL_Handler {
+class WSP_Email_Handler {
 	/**
 	 * Add Pickup details with woocommeerce email.
 	 */
