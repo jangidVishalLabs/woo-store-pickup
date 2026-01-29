@@ -7,9 +7,29 @@ if ( class_exists( 'WSP_Plugin' ) ) {
 	return;
 }
 
+/**
+ * WSP_Plugin class.
+ *
+ * Main plugin class responsible for initializing and managing all plugin functionality.
+ * This includes loading dependencies, registering hooks, and managing the plugin lifecycle.
+ *
+ * @class WSP_Plugin
+ * @version 1.0.0
+ */
 class WSP_Plugin {
+	/**
+	 * The loader instance that manages actions and filters.
+	 *
+	 * @var WSP_Loader
+	 */
 	protected $loader;
 
+	/**
+	 * Constructor.
+	 *
+	 * Loads dependencies, defines hooks for admin, shipping, checkout, and email functionality,
+	 * and enqueues necessary scripts.
+	 */
 	public function __construct() {
 		$this->load_dependencies();
 		$this->define_admin_hooks();
@@ -20,7 +40,12 @@ class WSP_Plugin {
 		add_action( 'wp_enqueue_scripts', array( $this, 'enqueue_scripts' ) );
 	}
 	/**
-	 * Core dependencies (Non-woocommerce)
+	 * Load plugin dependencies.
+	 *
+	 * Includes required files for the plugin functionality including loader,
+	 * CPT, meta boxes, checkout, emails, and admin features.
+	 *
+	 * @return void
 	 */
 	private function load_dependencies() {
 		require_once WSP_PATH . 'includes/class-wsp-loader.php';
@@ -34,7 +59,12 @@ class WSP_Plugin {
 		$this->loader = new WSP_Loader();
 	}
 	/**
-	 * Load Shipping class After WooCommerce is loaded
+	 * Load the shipping method class after WooCommerce is initialized.
+	 *
+	 * This method is hooked to 'woocommerce_shipping_init' to ensure WooCommerce
+	 * is fully loaded before attempting to extend WC_Shipping_Method.
+	 *
+	 * @return void
 	 */
 	public function load_shipping_method() {
 		if ( class_exists( 'WC_Shipping_Method' ) ) {
@@ -42,12 +72,23 @@ class WSP_Plugin {
 		}
 	}
 	/**
-	 * Register shipping method with woocommerce
+	 * Register the store pickup shipping method with WooCommerce.
+	 *
+	 * @param array $methods Array of registered shipping methods.
+	 * @return array Modified array of shipping methods.
 	 */
 	public static function register_shipping_method( $methods ) {
 		$methods['wsp_store_pickup'] = 'WSP_Shipping_Pickup';
 		return $methods;
 	}
+	/**
+	 * Define checkout-related hooks.
+	 *
+	 * Registers hooks for rendering checkout fields, validation, saving order meta,
+	 * and AJAX operations related to pickup store selection.
+	 *
+	 * @return void
+	 */
 	private function define_checkout_hooks() {
 		$checkout = new WSP_Checkout_Fields();
 
@@ -71,6 +112,14 @@ class WSP_Plugin {
 	}
 
 
+	/**
+	 * Define admin-related hooks.
+	 *
+	 * Registers hooks for custom post type, meta boxes, order admin columns,
+	 * filtering, and shop owner role management.
+	 *
+	 * @return void
+	 */
 	private function define_admin_hooks() {
 		$store_cpt  = new WSP_Store_CPT();
 		$store_meta = new WSP_Store_Meta();
@@ -176,6 +225,13 @@ class WSP_Plugin {
 		);
 	}
 
+	/**
+	 * Enqueue frontend scripts needed for checkout functionality.
+	 *
+	 * This is hooked to 'wp_enqueue_scripts' and only enqueues scripts on the checkout page.
+	 *
+	 * @return void
+	 */
 	public function enqueue_scripts() {
 		if ( is_checkout() ) {
 			wp_enqueue_script(
@@ -188,15 +244,26 @@ class WSP_Plugin {
 		}
 	}
 
+	/**
+	 * Define email-related hooks.
+	 *
+	 * Registers hooks for adding pickup details to WooCommerce email notifications.
+	 *
+	 * @return void
+	 */
 	private function define_email_hooks() {
 		$email_handler = new WSP_Email_Handler();
 
 		$this->loader->add_action( 'woocommerce_email_order_details', $email_handler, 'add_pickup_details_to_email', 20, 4 );
 	}
 
-
-
-
+	/**
+	 * Run the plugin.
+	 *
+	 * Executes all registered actions and filters through the loader.
+	 *
+	 * @return void
+	 */
 	public function run() {
 		$this->loader->run();
 	}

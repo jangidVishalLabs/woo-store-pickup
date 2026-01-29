@@ -7,9 +7,27 @@ if ( class_exists( 'WSP_Email_Handler' ) ) {
 	return;
 }
 
+/**
+ * WSP_Email_Handler class.
+ *
+ * Handles the addition of pickup details to WooCommerce order email notifications.
+ * Formats pickup information for both HTML and plain text email formats.
+ *
+ * @class WSP_Email_Handler
+ * @version 1.0.0
+ */
 class WSP_Email_Handler {
 	/**
-	 * Add Pickup details with woocommeerce email.
+	 * Add pickup details to WooCommerce order emails.
+	 *
+	 * Inserts pickup store information (name, address, date, and map link) into
+	 * order confirmation and notification emails. Supports both HTML and plain text formats.
+	 *
+	 * @param WC_Order $order         The order object.
+	 * @param bool     $sent_to_admin Whether the email is being sent to an administrator.
+	 * @param bool     $plain_text    Whether the email format is plain text.
+	 * @param object   $email         The email object being sent.
+	 * @return void
 	 */
 	public function add_pickup_details_to_email( $order, $sent_to_admin, $plain_text, $email ) {
 		if ( ! $order instanceof WC_Order ) {

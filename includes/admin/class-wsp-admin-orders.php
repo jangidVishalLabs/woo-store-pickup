@@ -7,10 +7,26 @@ if ( class_exists( 'WSP_Admin_Orders' ) ) {
 	return;
 }
 
+/**
+ * WSP_Admin_Orders class.
+ *
+ * Handles admin order list customizations including custom columns for pickup store and date,
+ * filtering capabilities, and display of pickup details in the order admin interface.
+ * Supports both HPOS (High-Performance Order Storage) and legacy post-based orders.
+ *
+ * @class WSP_Admin_Orders
+ * @version 1.0.0
+ */
 class WSP_Admin_Orders {
 
 	/**
-	 * Add custom columns.
+	 * Add custom columns to the order list table.
+	 *
+	 * Inserts "Pickup Store" and "Pickup Date" columns after the billing address column.
+	 * Works with both HPOS and legacy order lists.
+	 *
+	 * @param array $columns Existing order list columns.
+	 * @return array Modified columns array with new pickup columns.
 	 */
 	public function add_columns( $columns ) {
 
@@ -29,7 +45,13 @@ class WSP_Admin_Orders {
 	}
 
 	/**
-	 * Render column values.
+	 * Render custom column values in the order list.
+	 *
+	 * Displays the pickup store name and pickup date for each order in the custom columns.
+	 *
+	 * @param string  $column The name of the column being rendered.
+	 * @param WC_Order|object $order The order object (WC_Order for HPOS, post ID for legacy).
+	 * @return void
 	 */
 	public function render_columns( $column, $order ) {
 
@@ -47,7 +69,12 @@ class WSP_Admin_Orders {
 	}
 
 	/**
-	 * Add Pickup Date filter to HPOS order list
+	 * Add pickup date filter input to HPOS order list.
+	 *
+	 * Renders a date input field above the order list for filtering orders by pickup date.
+	 *
+	 * @param string $which Placement indicator ('top' or 'bottom').
+	 * @return void
 	 */
 	public function add_pickup_date_filter( $which ) {
 		// Only show on top filters
@@ -74,7 +101,13 @@ class WSP_Admin_Orders {
 	}
 
 	/**
-	 * Filter orders by Pickup Date (HPOS compatible)
+	 * Filter HPOS orders by pickup date.
+	 *
+	 * Modifies the database query to filter orders based on the selected pickup date.
+	 *
+	 * @param array    $clauses Database query clauses (join, where).
+	 * @param WP_Query $query   The WP_Query object.
+	 * @return array Modified query clauses.
 	 */
 	public function filter_orders_by_pickup_date_hpos( $clauses, $query ) {
 		global $wpdb;
@@ -112,7 +145,11 @@ class WSP_Admin_Orders {
 	}
 
 	/**
-	 * Add Pickup Date filter to legacy order list
+	 * Add pickup date filter input to legacy order list.
+	 *
+	 * Renders a date input field for filtering legacy (post-based) orders by pickup date.
+	 *
+	 * @return void
 	 */
 	public function add_pickup_date_filter_legacy() {
 		global $pagenow, $typenow;
@@ -135,7 +172,12 @@ class WSP_Admin_Orders {
 	}
 
 	/**
-	 * Filter orders by Pickup Date for legacy orders
+	 * Filter legacy orders by pickup date.
+	 *
+	 * Modifies the query to filter legacy post-based orders based on the selected pickup date.
+	 *
+	 * @param WP_Query $query The WP_Query object being executed.
+	 * @return void
 	 */
 	public function filter_orders_by_pickup_date_legacy( $query ) {
 		global $pagenow, $typenow;
@@ -153,6 +195,15 @@ class WSP_Admin_Orders {
 		$query->set( 'meta_query', $meta_query );
 	}
 
+	/**
+	 * Search HPOS orders by pickup store name.
+	 *
+	 * Enables searching orders by the pickup store name in the HPOS order list.
+	 *
+	 * @param array    $clauses Database query clauses (join, where).
+	 * @param WP_Query $query   The WP_Query object.
+	 * @return array Modified query clauses.
+	 */
 	public function search_orders_by_pickup_store_hpos( $clauses, $query ) {
 		global $wpdb;
 

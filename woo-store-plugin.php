@@ -3,23 +3,37 @@
  * Plugin Name: Store Plugin
  * Description: Store Pickup with reminder emails
  * Version: 1.0.0
+ * 
+ * @package WooStorePlugin
+ * @author Your Company
+ * @version 1.0.0
  */
 
 if ( ! defined( 'ABSPATH' ) ) {
 	exit;
 }
 
+/**
+ * Define plugin constants.
+ */
 define( 'WSP_PATH', plugin_dir_path( __FILE__ ) );
 define( 'WSP_URL', plugin_dir_url( __FILE__ ) );
 define( 'WSP_VERSION', '1.0.0' );
 
 
 /**
- * Run main plugin
+ * Initialize and run the main plugin class.
  */
 require_once WSP_PATH . 'includes/class-wsp-plugin.php';
 require_once WSP_PATH . 'includes/admin/class-wsp-admin-orders.php';
 
+/**
+ * Instantiate and run the main plugin functionality.
+ *
+ * Creates a new WSP_Plugin instance and executes the plugin initialization.
+ *
+ * @return void
+ */
 function run_wsp_plugin() {
 	$plugin = new WSP_Plugin();
 	$plugin->run();
@@ -28,16 +42,29 @@ run_wsp_plugin();
 
 /**
  * ===============================
- * PICKUP REMINDER CRON
+ * PICKUP REMINDER CRON SETUP
  * ===============================
+ * 
+ * Handles scheduling and clearing of WordPress cron jobs for sending
+ * pickup reminder emails to customers at specified times.
  */
 
 /**
- * Schedule cron on plugin activation
+ * Schedule cron jobs on plugin activation and deactivation.
  */
 register_activation_hook( __FILE__, 'wsp_schedule_pickup_reminder_cron' );
 register_deactivation_hook( __FILE__, 'wsp_clear_pickup_reminder_cron' );
 
+/**
+ * Schedule pickup reminder cron events.
+ *
+ * Sets up three daily cron jobs:
+ * - wsp_pickup_reminder_event_tomorrow: Tomorrow morning (00:05) for next-day pickups
+ * - wsp_pickup_reminder_event_today: Pickup day morning (08:00) for same-day pickups  
+ * - wsp_handle_missed_event: Daily at 09:00 to handle missed pickups
+ *
+ * @return void
+ */
 function wsp_schedule_pickup_reminder_cron() {
 	if ( ! wp_next_scheduled( 'wsp_pickup_reminder_event_tomorrow' ) ) {
 		wp_schedule_event( strtotime( 'tomorrow 00:05' ), 'daily', 'wsp_pickup_reminder_event_tomorrow' );
@@ -66,6 +93,14 @@ function wsp_schedule_pickup_reminder_cron() {
 	error_log( 'WSP Cron: wsp_schedule_pickup_reminder_cron completed.' );
 }
 
+/**
+ * Clear scheduled cron jobs on plugin deactivation.
+ *
+ * Removes all scheduled pickup reminder events when the plugin is deactivated.
+ * Prevents orphaned cron jobs from running after plugin removal.
+ *
+ * @return void
+ */
 function wsp_clear_pickup_reminder_cron() {
 	error_log( 'WSP Cron: wsp_clear_pickup_reminder_cron called during plugin deactivation.' );
 	error_log( 'WSP Cron: Clearing wsp_pickup_reminder_event_tomorrow.' );
@@ -77,7 +112,9 @@ function wsp_clear_pickup_reminder_cron() {
 }
 
 /**
- * Cron hook
+ * Register cron job hook handlers.
+ * 
+ * Connects the scheduled WordPress cron events to their corresponding callback functions.
  */
 add_action(
 	'wsp_pickup_reminder_event_tomorrow',
@@ -92,7 +129,12 @@ add_action(
 add_action( 'wsp_handle_missed_event', 'wsp_handle_missed_pickups' );
 
 /**
- * Find tomorrow pickup orders
+ * Send pickup reminder emails for orders with pickup date tomorrow.
+ *
+ * Queries for all processing/completed orders scheduled to be picked up tomorrow
+ * and sends reminder emails to the customers. Executes daily at 00:05 AM.
+ *
+ * @return void
  */
 function wsp_send_pickup_reminders_tomorrow() {
 	error_log( 'WSP Cron: wsp_send_pickup_reminders_tomorrow event triggered.' );
@@ -131,6 +173,14 @@ function wsp_send_pickup_reminders_tomorrow() {
 	error_log( 'WSP Cron: wsp_send_pickup_reminders_tomorrow event completed.' );
 }
 
+/**
+ * Send pickup reminder emails for orders with pickup date today.
+ *
+ * Queries for all processing/completed orders scheduled to be picked up today
+ * and sends reminder emails to the customers. Executes daily at 8:00 AM.
+ *
+ * @return void
+ */
 function wsp_send_pickup_reminders_today() {
 	error_log( 'WSP Cron: wsp_send_pickup_reminders_today event triggered.' );
 
@@ -171,7 +221,14 @@ function wsp_send_pickup_reminders_today() {
 
 
 /**
- * Send reminder email
+ * Send a pickup reminder email to a customer.
+ *
+ * Composes and sends a reminder email containing pickup details to the customer.
+ * Marks the order to prevent duplicate reminders.
+ *
+ * @param WC_Order $order The order object to send a reminder for.
+ * @param string   $type  Optional. Type of reminder ('tomorrow' or 'today'). Default is 'tomorrow'.
+ * @return void
  */
 function wsp_send_pickup_reminder_email( $order, $type = 'tomorrow' ) {
 	error_log( 'WSP Cron: wsp_send_pickup_reminder_email called for order ID - ' . $order->get_id() . ', type - ' . $type );
@@ -258,6 +315,14 @@ function wsp_send_pickup_reminder_email( $order, $type = 'tomorrow' ) {
 	}
 }
 
+/**
+ * Handle processing orders with missed pickup dates.
+ *
+ * Queries for processing orders where the pickup date has passed and applies
+ * extension or cancellation logic depending on circumstances. Executes daily at 09:00 AM.
+ *
+ * @return void
+ */
 function wsp_handle_missed_pickups() {
 	error_log( 'WSP Cron: wsp_handle_missed_pickups event triggered.' );
 
@@ -283,6 +348,15 @@ function wsp_handle_missed_pickups() {
 	}
 }
 
+/**
+ * Process a missed pickup order.
+ *
+ * Applies extension or cancellation logic to a processing order with a passed pickup date.
+ * First-time missed pickups are extended; subsequent misses may be cancelled.
+ *
+ * @param WC_Order $order The order object to process.
+ * @return void
+ */
 function wsp_process_missed_pickup_order( WC_Order $order ) {
 	if ( $order->get_status() === 'completed' ) {
 		error_log( "WSP Cron: Order {$order_id} already completed, skipping missed pickup logic." );

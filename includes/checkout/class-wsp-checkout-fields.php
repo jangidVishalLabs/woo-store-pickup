@@ -8,12 +8,23 @@ if ( class_exists( 'WSP_Checkout_Fields' ) ) {
 }
 
 /**
- * WSP_Checkout_Fields Class.
+ * WSP_Checkout_Fields class.
+ *
+ * Handles rendering of pickup store and date selection fields on the checkout page,
+ * validation of these fields, saving order metadata, and displaying pickup details
+ * to both customers and administrators.
+ *
+ * @class WSP_Checkout_Fields
+ * @version 1.0.0
  */
 class WSP_Checkout_Fields {
 
 	/**
-	 * Check if store pickup is selected.
+	 * Check if the store pickup shipping method is selected.
+	 *
+	 * Verifies that the customer has selected a shipping method containing the store pickup identifier.
+	 *
+	 * @return bool True if store pickup is selected, false otherwise.
 	 */
 	private function is_store_pickup() {
 
@@ -35,6 +46,14 @@ class WSP_Checkout_Fields {
 
 		return false;
 	}
+	/**
+	 * Get selected pickup stores for the current checkout session.
+	 *
+	 * Retrieves the stores assigned to the selected shipping method instance
+	 * from the shipping zone configuration.
+	 *
+	 * @return array Array of pickup store IDs available for the selected shipping method.
+	 */
 	function wsp_get_selected_pickup_stores_for_checkout() {
 		$chosen = WC()->session->get( 'chosen_shipping_methods' );
 		if ( empty( $chosen[0] ) ) {
@@ -54,7 +73,13 @@ class WSP_Checkout_Fields {
 
 
 	/**
-	 * Render Checkout Fields.
+	 * Render pickup store and date selection fields on the checkout page.
+	 *
+	 * Displays a store selector dropdown and pickup date input field only if the
+	 * store pickup shipping method is selected.
+	 *
+	 * @param WC_Checkout $checkout The WC_Checkout object.
+	 * @return void
 	 */
 	public function render_fields( $checkout ) {
 		if ( ! $this->is_store_pickup() ) {
@@ -98,7 +123,12 @@ class WSP_Checkout_Fields {
 
 
 	/**
-	 * Get Active Store Options.
+	 * Get active store options with addresses for the dropdown.
+	 *
+	 * Retrieves pickup stores assigned to the selected shipping method and formats them
+	 * as options for the store selection dropdown.
+	 *
+	 * @return array Array of store options formatted for WooCommerce form fields.
 	 */
 	private function get_store_options_with_address() {
 
@@ -131,7 +161,12 @@ class WSP_Checkout_Fields {
 
 
 	/**
-	 * Validate Checkout Fields.
+	 * Validate pickup store and date selections at checkout.
+	 *
+	 * Ensures both store location and pickup date are selected before checkout can proceed.
+	 * Displays error notices if validation fails.
+	 *
+	 * @return void
 	 */
 	public function validate_fields() {
 
@@ -155,7 +190,13 @@ class WSP_Checkout_Fields {
 	}
 
 	/**
-	 * Save order meta.
+	 * Save pickup store and date metadata to the order.
+	 *
+	 * Stores the selected store location and pickup date along with store details
+	 * (name, address, map URL) to the order metadata for future reference.
+	 *
+	 * @param WC_Order $order The order object being created.
+	 * @return void
 	 */
 	public function save_fields( $order ) {
 
@@ -182,6 +223,15 @@ class WSP_Checkout_Fields {
 		$order->update_meta_data( '_pickup_store_address', get_post_meta( $store_id, '_store_address', true ) );
 		$order->update_meta_data( '_pickup_store_map', get_post_meta( $store_id, '_store_map_url', true ) );
 	}
+	/**
+	 * Display pickup details in the admin order page.
+	 *
+	 * Shows pickup store information (name, address, date, and map) below the billing address
+	 * in the WooCommerce order admin page.
+	 *
+	 * @param WC_Order $order The order object.
+	 * @return void
+	 */
 	public static function display_admin_order_pickup_details( $order ) {
 		$store_name    = $order->get_meta( '_pickup_store_name' );
 		$store_address = $order->get_meta( '_pickup_store_address' );
@@ -204,7 +254,14 @@ class WSP_Checkout_Fields {
 		}
 	}
 	/**
-	 * Convert any Google Maps link into an embeddable iframe URL.
+	 * Convert Google Maps URLs to embeddable iframe formats.
+	 *
+	 * Attempts to extract coordinates from Google Maps URLs and converts them to
+	 * embeddable iframe URLs. Falls back to address-based embed if needed.
+	 *
+	 * @param string $url                The Google Maps URL to convert.
+	 * @param string $fallback_address   Optional. Address to use if URL conversion fails.
+	 * @return string The embeddable Google Maps URL or empty string.
 	 */
 	public static function wsp_convert_google_maps_to_embed( $url, $fallback_address = '' ) {
 
@@ -233,7 +290,13 @@ class WSP_Checkout_Fields {
 
 
 	/**
-	 * Display pickup details for customer
+	 * Display pickup details on the customer order page.
+	 *
+	 * Renders pickup store information including name, address, pickup date, and embedded map
+	 * for customers viewing their order on the thank you page or account order details.
+	 *
+	 * @param int $order_id The ID of the order being displayed.
+	 * @return void
 	 */
 	public static function display_customer_pickup_details( $order_id ) {
 		$order = wc_get_order( $order_id );
@@ -287,6 +350,14 @@ class WSP_Checkout_Fields {
 		<?php
 	}
 
+	/**
+	 * Handle AJAX request to get pickup stores for the selected shipping method.
+	 *
+	 * Returns HTML options for the pickup store dropdown based on the currently
+	 * selected shipping method instance.
+	 *
+	 * @return void
+	 */
 	public function wsp_get_pickup_stores_ajax() {
 
 		// Initialize WC if needed

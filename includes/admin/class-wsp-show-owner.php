@@ -7,8 +7,25 @@ if ( class_exists( 'WSP_Shop_Owner' ) ) {
 	return;
 }
 
+/**
+ * WSP_Shop_Owner class.
+ *
+ * Manages the Shop Owner user role, handles role-based filtering of pickup stores and orders,
+ * and prevents shop owners from modifying protected metadata.
+ *
+ * @class WSP_Shop_Owner
+ * @version 1.0.0
+ */
 class WSP_Shop_Owner {
 
+	/**
+	 * Register the Shop Owner user role.
+	 *
+	 * Creates a custom user role with specific capabilities for managing
+	 * pickup stores and shop orders. Only creates the role if it doesn't already exist.
+	 *
+	 * @return void
+	 */
 	public function register_role() {
 		if ( get_role( 'shop_owner' ) ) {
 			return;
@@ -37,7 +54,13 @@ class WSP_Shop_Owner {
 	}
 
 	/**
-	 * Restrict Pickup Store list to assigned stores
+	 * Filter the Pickup Store list to show only assigned stores for Shop Owners.
+	 *
+	 * Restricts the pickup store post list in the admin to show only stores
+	 * assigned to the current shop owner user. Admins see all stores.
+	 *
+	 * @param WP_Query $query The WP_Query object being executed.
+	 * @return void
 	 */
 	public function filter_pickup_store_list( $query ) {
 		if ( ! is_admin() || ! $query->is_main_query() ) {
@@ -67,7 +90,14 @@ class WSP_Shop_Owner {
 	}
 
 	/**
-	 * Filter HPOS orders by shop owner's stores
+	 * Filter HPOS (High-Performance Order Storage) orders by shop owner's stores.
+	 *
+	 * Modifies the query to show only orders with pickup store IDs assigned to the current shop owner.
+	 * Admins see all orders regardless of assignment.
+	 *
+	 * @param array    $clauses Database query clauses (join, where).
+	 * @param WP_Query $query   The WP_Query object.
+	 * @return array Modified query clauses.
 	 */
 	public function filter_orders_by_store_hpos( $clauses, $query ) {
 		global $wpdb;
@@ -108,7 +138,10 @@ class WSP_Shop_Owner {
 	}
 
 	/**
-	 * Get stores assigned to shop owner
+	 * Get store IDs assigned to a specific shop owner.
+	 *
+	 * @param int $user_id The ID of the shop owner user.
+	 * @return array Array of pickup store post IDs assigned to the user.
 	 */
 	private function get_store_ids_by_owner( $user_id ) {
 		return get_posts(
@@ -123,7 +156,17 @@ class WSP_Shop_Owner {
 	}
 
 	/**
-	 * Prevent shop owner from changing protected meta
+	 * Prevent shop owners from updating protected metadata.
+	 *
+	 * Blocks shop owners from modifying admin-only fields like assignment and zone mappings.
+	 * Allows administrators to modify all metadata.
+	 *
+	 * @param mixed  $check       The result of any previous filters.
+	 * @param int    $object_id   The ID of the object.
+	 * @param string $meta_key    The key of the metadata being updated.
+	 * @param mixed  $meta_value  The new value for the metadata.
+	 * @param mixed  $prev_value  The previous value of the metadata.
+	 * @return mixed False to prevent the update, or original check value to allow.
 	 */
 	public function prevent_shop_owner_meta_change( $check, $object_id, $meta_key, $meta_value, $prev_value ) {
 		$protected_keys = array( '_assigned_shop_owner', '_pickup_zone_id' );
@@ -141,7 +184,16 @@ class WSP_Shop_Owner {
 	}
 
 	/**
-	 * Prevent shop owner from adding protected meta
+	 * Prevent shop owners from adding protected metadata.
+	 *
+	 * Blocks shop owners from adding protected fields. Allows administrators to add any metadata.
+	 *
+	 * @param mixed  $check      The result of any previous filters.
+	 * @param int    $object_id  The ID of the object.
+	 * @param string $meta_key   The key of the metadata being added.
+	 * @param mixed  $meta_value The value of the metadata.
+	 * @param bool   $unique     Whether the metadata key should be unique.
+	 * @return mixed False to prevent the addition, or original check value to allow.
 	 */
 	public function wsp_prevent_shop_owner_add_meta( $check, $object_id, $meta_key, $meta_value, $unique ) {
 		$protected_keys = array( '_assigned_shop_owner', '_pickup_zone_id' );
@@ -156,7 +208,12 @@ class WSP_Shop_Owner {
 	}
 
 	/**
-	 * Hide admin menus for shop owner
+	 * Hide admin menus for shop owner users.
+	 *
+	 * Removes certain admin menu items for shop owners while keeping them visible to administrators.
+	 * Hides WooCommerce settings, reports, and tools menus.
+	 *
+	 * @return void
 	 */
 	public function cleanup_admin_menus() {
 		// Only for shop owners, not admins

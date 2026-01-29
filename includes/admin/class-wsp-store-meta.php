@@ -8,10 +8,24 @@ if ( class_exists( 'WSP_Store_Meta' ) ) {
 }
 
 /**
- * WSP Store Meta Class.
+ * WSP_Store_Meta class.
+ *
+ * Handles meta box registration, rendering, and saving for the Pickup Store CPT.
+ * Manages store details (address, map URL, coordinates) and admin-only assignment options.
+ *
+ * @class WSP_Store_Meta
+ * @version 1.0.0
  */
 class WSP_Store_Meta {
 
+	/**
+	 * Register meta boxes for the Pickup Store post type.
+	 *
+	 * Adds two meta boxes: one for store details (visible to all) and one for
+	 * admin-only store assignment to shipping zones and shop owners.
+	 *
+	 * @return void
+	 */
 	public function add_meta_boxes() {
 		add_meta_box(
 			'pickup_store_details',
@@ -30,6 +44,14 @@ class WSP_Store_Meta {
 		}
 	}
 
+	/**
+	 * Render the store details meta box.
+	 *
+	 * Displays fields for store address, Google Maps URL, and latitude/longitude coordinates.
+	 *
+	 * @param WP_Post $post The post object for the current store.
+	 * @return void
+	 */
 	public function render_meta_box( $post ) {
 		wp_nonce_field( 'wsp_store_meta', 'wsp_store_meta_nonce' );
 		$address = get_post_meta( $post->ID, '_store_address', true );
@@ -61,7 +83,13 @@ class WSP_Store_Meta {
 		<?php
 	}
 	/**
-	 * Admin Assignment Meta Box.
+	 * Render the admin assignment meta box.
+	 *
+	 * Displays dropdowns for assigning the store to a shop owner and selecting a shipping zone.
+	 * Only visible to administrators.
+	 *
+	 * @param WP_Post $post The post object for the current store.
+	 * @return void
 	 */
 	public function render_assignment_meta_box( $post ) {
 		$assigned_owner = get_post_meta( $post->ID, '_assigned_shop_owner', true );
@@ -100,6 +128,15 @@ class WSP_Store_Meta {
 	}
 
 
+	/**
+	 * Save store meta data.
+	 *
+	 * Saves all store-related meta data including address, map URL, coordinates,
+	 * and admin-only assignment fields. Includes nonce verification and permission checks.
+	 *
+	 * @param int $post_id The ID of the post being saved.
+	 * @return void
+	 */
 	public function save_meta( $post_id ) {
 		if ( ! isset( $_POST['wsp_store_meta_nonce'] ) ) {
 			return;
@@ -138,6 +175,16 @@ class WSP_Store_Meta {
 		}
 	}
 
+	/**
+	 * Enforce mandatory store title.
+	 *
+	 * Validates that the store post has a non-empty title before saving.
+	 * Prevents saving stores without a name.
+	 *
+	 * @param array $data    The post data being saved.
+	 * @param array $postarr The array of post values and meta values.
+	 * @return array The modified or unmodified post data array.
+	 */
 	public function mandatory_title( $data, $postarr ) {
 		// Only validate our CPT
 		if ( $data['post_type'] !== 'pickup_store' ) {
@@ -160,6 +207,15 @@ class WSP_Store_Meta {
 		return $data;
 	}
 
+	/**
+	 * Remove zone mapping when a store is deleted.
+	 *
+	 * Cleans up associated meta data when a store post is deleted,
+	 * including zone and shop owner assignments.
+	 *
+	 * @param int $post_id The ID of the post being deleted.
+	 * @return void
+	 */
 	public function on_delete_remove_zone_mapping( $post_id ) {
 		if ( get_post_type( $post_id ) != 'pickup_store' ) {
 			return;
@@ -170,12 +226,29 @@ class WSP_Store_Meta {
 		delete_post_meta( $post_id, '_assigned_shop_owner' );
 	}
 
+	/**
+	 * Add custom status column to the Pickup Store list table.
+	 *
+	 * Adds a "Status" column to the store post type listing in the admin.
+	 *
+	 * @param array $columns The array of column names.
+	 * @return array Modified array of column names.
+	 */
 	public function custom_status_columns( $columns ) {
 		error_log( 'custom_status_columns called' . print_r( $columns, true ) );
 		$columns['status'] = 'Status';
 		return $columns;
 	}
 
+	/**
+	 * Render custom status column values.
+	 *
+	 * Displays the post status for each store in the status column of the list table.
+	 *
+	 * @param string $column   The name of the column being rendered.
+	 * @param int    $post_id  The ID of the post.
+	 * @return void
+	 */
 	public function render_custom_status_columns( $column, $post_id ) {
 		if ( $column === 'status' ) {
 			echo esc_html( get_post_status( $post_id ) );

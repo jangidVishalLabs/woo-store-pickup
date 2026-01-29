@@ -7,8 +7,25 @@ if ( class_exists( 'WSP_Store_CPT' ) ) {
 	return;
 }
 
+/**
+ * WSP_Store_CPT class.
+ *
+ * Handles the registration of the "Pickup Store" custom post type.
+ * This CPT is used to create and manage physical store locations where customers can pick up orders.
+ *
+ * @class WSP_Store_CPT
+ * @version 1.0.0
+ */
 class WSP_Store_CPT {
 
+	/**
+	 * Register the Pickup Store custom post type.
+	 *
+	 * Creates a custom post type called 'pickup_store' with appropriate labels,
+	 * capabilities, and settings for managing store locations.
+	 *
+	 * @return void
+	 */
 	public function register_cpt() {
 
 		register_post_type(

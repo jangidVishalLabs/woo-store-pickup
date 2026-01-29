@@ -7,10 +7,25 @@ if ( class_exists( 'WSP_Shipping_Pickup' ) ) {
 	return;
 }
 /**
- * WSP Shipping Pickup Class.
+ * WSP_Shipping_Pickup class.
+ *
+ * A custom WooCommerce shipping method that allows customers to select from
+ * predefined pickup store locations instead of traditional shipping addresses.
+ * Extends WC_Shipping_Method for integration with WooCommerce shipping zones.
+ *
+ * @class WSP_Shipping_Pickup
+ * @extends WC_Shipping_Method
+ * @version 1.0.0
  */
 class WSP_Shipping_Pickup extends WC_Shipping_Method {
 
+	/**
+	 * Constructor.
+	 *
+	 * Initializes the shipping method with basic configuration and sets up hooks.
+	 *
+	 * @param int $instance_id Optional. The instance ID of this shipping method in a zone.
+	 */
 	public function __construct( $instance_id = 0 ) {
 		$this->id                 = 'wsp_store_pickup';
 		$this->instance_id        = absint( $instance_id );
@@ -26,7 +41,11 @@ class WSP_Shipping_Pickup extends WC_Shipping_Method {
 		$this->init();
 	}
 	/**
-	 * Initialize settings.
+	 * Initialize the shipping method settings.
+	 *
+	 * Loads the settings API, initializes form fields, and hooks the settings update action.
+	 *
+	 * @return void
 	 */
 	public function init() {
 		// Load the settings API
@@ -39,7 +58,12 @@ class WSP_Shipping_Pickup extends WC_Shipping_Method {
 		add_action( 'woocommerce_update_options_shipping_' . $this->id, array( $this, 'process_admin_options' ) );
 	}
 	/**
-	 * Admin Settings Fields.
+	 * Define admin settings form fields.
+	 *
+	 * Configures the settings form that appears in the WooCommerce shipping zone editor,
+	 * including method title, enabled status, assigned stores, and cost.
+	 *
+	 * @return void
 	 */
 	public function init_form_fields() {
 
@@ -77,6 +101,14 @@ class WSP_Shipping_Pickup extends WC_Shipping_Method {
 		);
 	}
 
+	/**
+	 * Get available store options for the admin form.
+	 *
+	 * Retrieves all published pickup stores and formats them as options.
+	 * Returns an empty array if the pickup store CPT doesn't exist.
+	 *
+	 * @return array Associative array of store IDs and titles.
+	 */
 	private function get_store_options_safe() {
 
 		$options = array();
@@ -102,7 +134,13 @@ class WSP_Shipping_Pickup extends WC_Shipping_Method {
 	}
 
 	/**
-	 * Calculate Shipping Cost.
+	 * Calculate the shipping cost for store pickup.
+	 *
+	 * Determines the cost for this shipping method based on the settings.
+	 * Displays a message if no stores are assigned.
+	 *
+	 * @param array $package Optional. The package being shipped.
+	 * @return void
 	 */
 	public function calculate_shipping( $package = array() ) {
 		if ( 'yes' !== $this->get_option( 'enabled' ) ) {
@@ -124,7 +162,12 @@ class WSP_Shipping_Pickup extends WC_Shipping_Method {
 		$this->add_rate( $rate );
 	}
 	/**
-	 * Get Assigned Stores.
+	 * Get the stores assigned to this shipping method instance.
+	 *
+	 * Retrieves and validates the list of pickup stores configured for this
+	 * shipping method instance. Returns an empty array if none are assigned.
+	 *
+	 * @return array Array of validated pickup store IDs.
 	 */
 	public function get_assigned_stores() {
 		$stores = $this->get_option( 'assigned_stores', array() );
