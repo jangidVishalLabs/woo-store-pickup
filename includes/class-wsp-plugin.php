@@ -79,6 +79,10 @@ class WSP_Plugin {
 
 		$this->loader->add_action( 'add_meta_boxes', $store_meta, 'add_meta_boxes' );
 		$this->loader->add_action( 'save_post', $store_meta, 'save_meta', 10, 2 );
+		$this->loader->add_filter('wp_insert_post_data', $store_meta, 'mandatory_title', 10, 2);
+		$this->loader->add_action( 'before_delete_post', $store_meta, 'on_delete_remove_zone_mapping' );
+		$this->loader->add_filter( 'manage_pickup_store_posts_columns', $store_meta, 'custom_status_columns' );
+		$this->loader->add_action( 'manage_pickup_store_posts_custom_column', $store_meta, 'render_custom_status_columns', 10, 2 );
 
 		$admin_orders = new WSP_Admin_Orders();
 
@@ -110,6 +114,7 @@ class WSP_Plugin {
 			10,
 			2
 		);
+		
 
 		// Legacy (Post-based Orders) Hooks - for backwards compatibility
 		$this->loader->add_filter(
@@ -170,6 +175,8 @@ class WSP_Plugin {
 			'woocommerce_shipping_methods',
 			array( $this, 'register_shipping_method' )
 		);
+
+		
 	}
 
 	public function enqueue_scripts() {

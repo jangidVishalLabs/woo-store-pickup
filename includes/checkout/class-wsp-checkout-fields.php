@@ -334,7 +334,8 @@ public static function wsp_convert_google_maps_to_embed( $url, $fallback_address
 
 	wp_send_json_success( $options );
 
-	
 }
+
+
 
 }

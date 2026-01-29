@@ -47,17 +47,17 @@ class WSP_Store_Meta {
         <label><strong>Google Map URL</strong></label><br>
         <input type="text" name="store_map_url" value="<?php echo esc_attr( $map_url ); ?>" style="width:100%;" />
         <small>Example: https://maps.google.com/?q=...</small>
-    </p>
+    	</p>
 
-    <p>
+    	<p>
         <label><strong>Latitude</strong></label><br>
         <input type="text" name="store_lat" value="<?php echo esc_attr( $lat ); ?>" />
-    </p>
+    	</p>
 
-    <p>
+    	<p>
         <label><strong>Longitude</strong></label><br>
         <input type="text" name="store_lng" value="<?php echo esc_attr( $lng ); ?>" />
-    </p>
+    	</p>
 		<?php
 	}
 	/**
@@ -107,34 +107,71 @@ class WSP_Store_Meta {
 		if ( get_post_type( $post_id ) != 'pickup_store' ) return;
 
 
-		if ( isset( $_POST['store_address'] ) ) {
-			update_post_meta( $post_id, '_store_address', sanitize_textarea_field( $_POST['store_address'] ) );
+		// Address (optional)
+		update_post_meta(
+			$post_id,
+			'_store_address',
+			isset( $_POST['store_address'] )
+			? sanitize_textarea_field( $_POST['store_address'] )
+			: ''
+		);
+
+			// Map URL (optional & sanitized)
+			$map_url = isset( $_POST['store_map_url'] ) ? 	esc_url_raw( $_POST['store_map_url'] ) : '';
+			update_post_meta( $post_id, '_store_map_url', 	$map_url );
+
+			// Latitude / Longitude
+			update_post_meta( $post_id, '_store_lat', 	sanitize_text_field( $_POST['store_lat'] ?? '' ) );
+			update_post_meta( $post_id, '_store_lng', 	sanitize_text_field( $_POST['store_lng'] ?? '' ) );
+
+			// Admin-only fields
+			if ( current_user_can( 'manage_options' ) ) {
+			update_post_meta( $post_id, '_assigned_shop_owner', 	absint( $_POST['assigned_shop_owner'] ?? 0 ) );
+			update_post_meta( $post_id, '_pickup_zone_id', absint	( $_POST['pickup_zone_id'] ?? 0 ) );
 		}
-
-		if ( isset( $_POST['store_map_url'] ) ) {
-        	update_post_meta( $post_id, '_store_map_url', esc_url_raw( $_POST['store_map_url'] ) );
-    	}
-
-    	if ( isset( $_POST['store_lat'] ) ) {
-        	update_post_meta( $post_id, '_store_lat', sanitize_text_field( $_POST['store_lat'] ) );
-    	}
-
-    	if ( isset( $_POST['store_lng'] ) ) {
-        	update_post_meta( $post_id, '_store_lng', sanitize_text_field( $_POST['store_lng'] ) );
-    	}
-
-		// Admin-only fields
-		if ( current_user_can( 'manage_options' ) ) {
-			if ( isset( $_POST['assigned_shop_owner'] ) ) {
-				update_post_meta( $post_id, '_assigned_shop_owner', absint( $_POST['assigned_shop_owner'] ) );
-			}
-
-			if ( isset( $_POST['pickup_zone_id'] ) ) {
-				update_post_meta( $post_id, '_pickup_zone_id', absint( $_POST['pickup_zone_id'] ) );
-			}
-		
-
 	}
 
-}
+	public function mandatory_title( $data , $postarr ) {
+		// Only validate our CPT
+    if ( $data['post_type'] !== 'pickup_store' ) {
+        return $data;
+    }
+
+    // Allow auto-drafts
+    if ( defined( 'DOING_AUTOSAVE' ) && DOING_AUTOSAVE ) {
+        return $data;
+    }
+
+    if ( empty( trim( $data['post_title'] ) ) ) {
+        wp_die(
+            __( 'Store name is mandatory.', 'wsp' ),
+            __( 'Validation Error', 'wsp' ),
+            array( 'back_link' => true )
+        );
+    }
+
+    return $data;
+	}
+
+	public function on_delete_remove_zone_mapping( $post_id ){
+		if ( get_post_type( $post_id ) != 'pickup_store' ) {
+			return;
+		}
+
+		// Remove zone mapping
+		delete_post_meta( $post_id, '_pickup_zone_id' );
+		delete_post_meta( $post_id, '_assigned_shop_owner' );
+	}
+
+	public function custom_status_columns( $columns ) {
+		error_log( 'custom_status_columns called' . print_r( $columns, true ) );
+		$columns['status'] = 'Status';
+		return $columns;
+	}
+
+	public function render_custom_status_columns( $column, $post_id ) {
+		if ( $column === 'status' ) {
+		echo esc_html( get_post_status( $post_id ) );
+	}
+	}
 }

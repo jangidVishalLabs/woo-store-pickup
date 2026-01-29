@@ -66,6 +66,14 @@ class WSP_Shipping_Pickup  extends WC_Shipping_Method {
 				'options'     => $this->get_store_options_safe(),
 				'desc_tip'    => true,
 			),
+			'cost' => array(
+				'title'       => __( 'Pickup Cost', 'woo-store-plugin' ),
+				'type'        => 'price',
+				'description' => __( 'Cost for store pickup. Use 0 for free pickup.', 'woo-store-plugin' ),
+				'default'     => '0',
+				'desc_tip'    => true,
+			),
+
 		);
 	}
 
@@ -100,13 +108,36 @@ class WSP_Shipping_Pickup  extends WC_Shipping_Method {
 		if ( 'yes' !== $this->get_option( 'enabled' ) ) {
 			return;
 		}
+		$assigned_stores = $this->get_assigned_stores();
+		if ( empty( $assigned_stores ) ) {
+			$label = $this->title . ' (' . __( 'No stores available', 'woo-store-plugin' ) . ')';
+		} else {
+			$label = $this->title;
+		}
+
+		$cost = (float) $this->get_option( 'cost', 0 );
 		$rate = array(
 			'id'    => $this->id . ':' . $this->instance_id,
-			'label' => $this->get_option( 'title', 'Store Pickup' ),
-			'cost'  => '0.00',
+			'label' => $label,
+			'cost'  => $cost,
 		);
 		$this->add_rate( $rate );
 	}
+	/**
+	 * Get Assigned Stores.
+	 */
+	public function get_assigned_stores() {
+		$stores = $this->get_option( 'assigned_stores', array() );
+		if ( empty( $stores ) ) {
+			return array();
+		}
+		if ( ! is_array( $stores ) ) {
+			$stores = array_map('absint', explode( ',', $stores ) );
+		}
+
+		return array_filter( array_map( 'absint', $stores ) );
+	}
+
 
 
 }
