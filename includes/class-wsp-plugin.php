@@ -52,7 +52,7 @@ class WSP_Plugin {
 		$checkout = new WSP_Checkout_Fields();
 
 		$this->loader->add_action( 'woocommerce_after_order_notes', $checkout, 'render_fields' );
-		$this->loader->add_action( 'woocommerce_checkout_create_order', $checkout, 'save_fields', 20, 1);
+		$this->loader->add_action( 'woocommerce_checkout_create_order', $checkout, 'save_fields', 20, 1 );
 		$this->loader->add_action( 'woocommerce_checkout_process', $checkout, 'validate_fields' );
 		$this->loader->add_action( 'woocommerce_admin_order_data_after_billing_address', $checkout, 'display_admin_order_pickup_details' );
 		$this->loader->add_action( 'woocommerce_thankyou', $checkout, 'display_customer_pickup_details' );
@@ -79,7 +79,7 @@ class WSP_Plugin {
 
 		$this->loader->add_action( 'add_meta_boxes', $store_meta, 'add_meta_boxes' );
 		$this->loader->add_action( 'save_post', $store_meta, 'save_meta', 10, 2 );
-		$this->loader->add_filter('wp_insert_post_data', $store_meta, 'mandatory_title', 10, 2);
+		$this->loader->add_filter( 'wp_insert_post_data', $store_meta, 'mandatory_title', 10, 2 );
 		$this->loader->add_action( 'before_delete_post', $store_meta, 'on_delete_remove_zone_mapping' );
 		$this->loader->add_filter( 'manage_pickup_store_posts_columns', $store_meta, 'custom_status_columns' );
 		$this->loader->add_action( 'manage_pickup_store_posts_custom_column', $store_meta, 'render_custom_status_columns', 10, 2 );
@@ -114,7 +114,6 @@ class WSP_Plugin {
 			10,
 			2
 		);
-		
 
 		// Legacy (Post-based Orders) Hooks - for backwards compatibility
 		$this->loader->add_filter(
@@ -146,23 +145,23 @@ class WSP_Plugin {
 		$this->loader->add_action(
 			'woocommerce_orders_table_query_clauses',
 			$admin_orders,
-			'search_orders_by_pickup_store_hpos', 20, 2
+			'search_orders_by_pickup_store_hpos',
+			20,
+			2
 		);
 
 		$shop_owner = new WSP_Shop_Owner();
 
-	$this->loader->add_action( 'init', $shop_owner, 'register_role' );
-	
+		$this->loader->add_action( 'init', $shop_owner, 'register_role' );
 
-// Restrict Pickup Store CPT
-	$this->loader->add_action( 'pre_get_posts', $shop_owner, 'filter_pickup_store_list' );
-	$this->loader->add_filter( 'woocommerce_orders_table_query_clauses', $shop_owner, 'filter_orders_by_store_hpos', 10, 2 );
-	$this->loader->add_action( 'admin_menu', $shop_owner, 'cleanup_admin_menus' );
-	$this->loader->add_filter( 'update_post_metadata', $shop_owner, 'prevent_shop_owner_meta_change', 10, 5 );
-	$this->loader->add_filter( 'add_post_metadata', $shop_owner, 'wsp_prevent_shop_owner_add_meta', 10, 5 );
-
+		// Restrict Pickup Store CPT
+		$this->loader->add_action( 'pre_get_posts', $shop_owner, 'filter_pickup_store_list' );
+		$this->loader->add_filter( 'woocommerce_orders_table_query_clauses', $shop_owner, 'filter_orders_by_store_hpos', 10, 2 );
+		$this->loader->add_action( 'admin_menu', $shop_owner, 'cleanup_admin_menus' );
+		$this->loader->add_filter( 'update_post_metadata', $shop_owner, 'prevent_shop_owner_meta_change', 10, 5 );
+		$this->loader->add_filter( 'add_post_metadata', $shop_owner, 'wsp_prevent_shop_owner_add_meta', 10, 5 );
 	}
-	
+
 	private function define_shipping_hooks() {
 		// Load shipping class at the right time
 		add_action(
@@ -175,22 +174,20 @@ class WSP_Plugin {
 			'woocommerce_shipping_methods',
 			array( $this, 'register_shipping_method' )
 		);
-
-		
 	}
 
 	public function enqueue_scripts() {
 		if ( is_checkout() ) {
 			wp_enqueue_script(
 				'wsp-checkout',
-				 plugin_dir_url(__FILE__) . 'assets/js/wsp-checkout.js',
-            array('jquery', 'wc-checkout'),
+				plugin_dir_url( __FILE__ ) . 'assets/js/wsp-checkout.js',
+				array( 'jquery', 'wc-checkout' ),
 				WSP_VERSION,
 				true
 			);
 		}
 	}
-	
+
 	private function define_email_hooks() {
 		$email_handler = new WSP_Email_Handler();
 

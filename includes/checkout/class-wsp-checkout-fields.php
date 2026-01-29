@@ -35,7 +35,7 @@ class WSP_Checkout_Fields {
 
 		return false;
 	}
-		function wsp_get_selected_pickup_stores_for_checkout() {
+	function wsp_get_selected_pickup_stores_for_checkout() {
 		$chosen = WC()->session->get( 'chosen_shipping_methods' );
 		if ( empty( $chosen[0] ) ) {
 			return array();
@@ -122,7 +122,7 @@ class WSP_Checkout_Fields {
 		);
 
 		foreach ( $stores as $store ) {
-			$address = get_post_meta( $store->ID, '_store_address', true );
+			$address               = get_post_meta( $store->ID, '_store_address', true );
 			$options[ $store->ID ] = $store->post_title;
 		}
 
@@ -203,33 +203,33 @@ class WSP_Checkout_Fields {
 			echo '<p><strong>' . esc_html__( 'Store Location:', 'woo-store-plugin' ) . '</strong> <a href="' . esc_url( $map_url ) . '" target="_blank">' . esc_html__( 'View on Map', 'woo-store-plugin' ) . '</a></p>';
 		}
 	}
-/**
- * Convert any Google Maps link into an embeddable iframe URL.
- */
-public static function wsp_convert_google_maps_to_embed( $url, $fallback_address = '' ) {
+	/**
+	 * Convert any Google Maps link into an embeddable iframe URL.
+	 */
+	public static function wsp_convert_google_maps_to_embed( $url, $fallback_address = '' ) {
 
-	if ( empty( $url ) && empty( $fallback_address ) ) {
+		if ( empty( $url ) && empty( $fallback_address ) ) {
+			return '';
+		}
+
+		// 1. Already embed URL → use directly
+		if ( strpos( $url, 'google.com/maps/embed' ) !== false ) {
+			return $url;
+		}
+
+		// 2. Try extracting coordinates from full maps URL
+		if ( ! empty( $url ) && preg_match( '/@(-?\d+\.\d+),(-?\d+\.\d+)/', $url, $m ) ) {
+			return 'https://www.google.com/maps?q=' . $m[1] . ',' . $m[2] . '&output=embed';
+		}
+
+		// 3. Short URLs (maps.app.goo.gl / goo.gl) → USE ADDRESS
+		if ( ! empty( $fallback_address ) ) {
+			return 'https://www.google.com/maps?q=' . urlencode( $fallback_address ) . '&output=embed';
+		}
+
+		// 4. Absolute fallback → do not embed
 		return '';
 	}
-
-	// 1. Already embed URL → use directly
-	if ( strpos( $url, 'google.com/maps/embed' ) !== false ) {
-		return $url;
-	}
-
-	// 2. Try extracting coordinates from full maps URL
-	if ( ! empty( $url ) && preg_match( '/@(-?\d+\.\d+),(-?\d+\.\d+)/', $url, $m ) ) {
-		return 'https://www.google.com/maps?q=' . $m[1] . ',' . $m[2] . '&output=embed';
-	}
-
-	// 3. Short URLs (maps.app.goo.gl / goo.gl) → USE ADDRESS
-	if ( ! empty( $fallback_address ) ) {
-		return 'https://www.google.com/maps?q=' . urlencode( $fallback_address ) . '&output=embed';
-	}
-
-	// 4. Absolute fallback → do not embed
-	return '';
-}
 
 
 	/**
@@ -264,24 +264,24 @@ public static function wsp_convert_google_maps_to_embed( $url, $fallback_address
 				<?php echo esc_html( $pickup_date ); ?>
 			</p>
 			<?php if ( $map_url ) : ?>
-		<?php 	$embed_url = self::wsp_convert_google_maps_to_embed( $map_url, $store_address ); ?>
-            <div style="margin-top:15px;">
-                <strong><?php esc_html_e( 'Store Location:', 'woo-store-plugin' ); ?></strong>
-                <iframe
-                    src="<?php echo esc_url( $embed_url ); ?>"
-                    width="100%"
-                    height="300"
-                    style="border:0; margin-top:10px;"
-                    loading="lazy"
-                    referrerpolicy="no-referrer-when-downgrade">
-                </iframe>
+				<?php $embed_url = self::wsp_convert_google_maps_to_embed( $map_url, $store_address ); ?>
+			<div style="margin-top:15px;">
+				<strong><?php esc_html_e( 'Store Location:', 'woo-store-plugin' ); ?></strong>
+				<iframe
+					src="<?php echo esc_url( $embed_url ); ?>"
+					width="100%"
+					height="300"
+					style="border:0; margin-top:10px;"
+					loading="lazy"
+					referrerpolicy="no-referrer-when-downgrade">
+				</iframe>
 				<p style="margin-top:8px;">
 				<a href="<?php echo esc_url( $map_url ); ?>" target="_blank" rel="noopener">
 					<?php esc_html_e( 'Open in Google Maps', 'woo-store-plugin' ); ?>
 				</a>
 			</p>
-            </div>
-        <?php endif; ?>
+			</div>
+		<?php endif; ?>
 		</section>
 
 		<?php
@@ -289,53 +289,51 @@ public static function wsp_convert_google_maps_to_embed( $url, $fallback_address
 
 	public function wsp_get_pickup_stores_ajax() {
 
-    // Initialize WC if needed
-    if ( ! did_action( 'woocommerce_init' ) ) {
-        wp_send_json_error( 'WooCommerce not initialized' );
-    }
-
-    if ( ! WC()->session ) {
-        wp_send_json_error( 'No session available' );
-    }
-
-	$chosen = WC()->session->get( 'chosen_shipping_methods' );
-
-	if ( empty( $chosen[0] ) || strpos( $chosen[0], 'wsp_store_pickup:' ) === false ) {
-		wp_send_json_success( '<option value="">Select a store</option>' );
-	}
-
-	list( , $instance_id ) = explode( ':', $chosen[0] );
-
-	$shipping_method = WC_Shipping_Zones::get_shipping_method( $instance_id );
-
-	if ( ! $shipping_method ) {
-		wp_send_json_success( '<option value="">Select a store</option>' );
-	}
-
-	$store_ids = (array) $shipping_method->get_option( 'assigned_stores', [] );
-
-	$options = '<option value="">Select a store</option>';
-
-	if ( $store_ids ) {
-		$stores = get_posts([
-			'post_type' => 'pickup_store',
-			'post__in'  => $store_ids,
-			'post_status' => 'publish',
-		]);
-
-		foreach ( $stores as $store ) {
-			$options .= sprintf(
-				'<option value="%d">%s</option>',
-				$store->ID,
-				esc_html( $store->post_title )
-			);
+		// Initialize WC if needed
+		if ( ! did_action( 'woocommerce_init' ) ) {
+			wp_send_json_error( 'WooCommerce not initialized' );
 		}
+
+		if ( ! WC()->session ) {
+			wp_send_json_error( 'No session available' );
+		}
+
+		$chosen = WC()->session->get( 'chosen_shipping_methods' );
+
+		if ( empty( $chosen[0] ) || strpos( $chosen[0], 'wsp_store_pickup:' ) === false ) {
+			wp_send_json_success( '<option value="">Select a store</option>' );
+		}
+
+		list( , $instance_id ) = explode( ':', $chosen[0] );
+
+		$shipping_method = WC_Shipping_Zones::get_shipping_method( $instance_id );
+
+		if ( ! $shipping_method ) {
+			wp_send_json_success( '<option value="">Select a store</option>' );
+		}
+
+		$store_ids = (array) $shipping_method->get_option( 'assigned_stores', array() );
+
+		$options = '<option value="">Select a store</option>';
+
+		if ( $store_ids ) {
+			$stores = get_posts(
+				array(
+					'post_type'   => 'pickup_store',
+					'post__in'    => $store_ids,
+					'post_status' => 'publish',
+				)
+			);
+
+			foreach ( $stores as $store ) {
+				$options .= sprintf(
+					'<option value="%d">%s</option>',
+					$store->ID,
+					esc_html( $store->post_title )
+				);
+			}
+		}
+
+		wp_send_json_success( $options );
 	}
-
-	wp_send_json_success( $options );
-
-}
-
-
-
 }

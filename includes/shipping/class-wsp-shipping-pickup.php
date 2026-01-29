@@ -9,14 +9,14 @@ if ( class_exists( 'WSP_Shipping_Pickup' ) ) {
 /**
  * WSP Shipping Pickup Class.
  */
-class WSP_Shipping_Pickup  extends WC_Shipping_Method {
-	
+class WSP_Shipping_Pickup extends WC_Shipping_Method {
+
 	public function __construct( $instance_id = 0 ) {
 		$this->id                 = 'wsp_store_pickup';
 		$this->instance_id        = absint( $instance_id );
 		$this->method_title       = __( 'Store Pickup', 'woo-store-plugin' );
 		$this->method_description = __( 'Allows customers to pick up their orders from a physical store location.', 'woo-store-plugin' );
-		$this->enabled            = "yes";
+		$this->enabled            = 'yes';
 		$this->title              = __( 'Store Pickup', 'woo-store-plugin' );
 		$this->supports           = array(
 			'shipping-zones',
@@ -33,7 +33,7 @@ class WSP_Shipping_Pickup  extends WC_Shipping_Method {
 		$this->init_form_fields();
 		$this->init_settings();
 
-		$this->title = $this->get_option( 'title', 'Store Pickup' );
+		$this->title   = $this->get_option( 'title', 'Store Pickup' );
 		$this->enabled = $this->get_option( 'enabled', 'yes' );
 
 		add_action( 'woocommerce_update_options_shipping_' . $this->id, array( $this, 'process_admin_options' ) );
@@ -44,18 +44,18 @@ class WSP_Shipping_Pickup  extends WC_Shipping_Method {
 	public function init_form_fields() {
 
 		$this->instance_form_fields = array(
-			'title' => array(
+			'title'           => array(
 				'title'       => __( 'Method Title', 'woo-store-plugin' ),
 				'type'        => 'text',
 				'description' => __( 'This controls the title which the user sees during checkout.', 'woo-store-plugin' ),
 				'default'     => __( 'Store Pickup', 'woo-store-plugin' ),
 				'desc_tip'    => true,
 			),
-			'enabled' => array(
-				'title'       => __( 'Enable/Disable', 'woo-store-plugin' ),
-				'type'        => 'checkbox',
-				'label'       => __( 'Enable Store Pickup Method', 'woo-store-plugin' ),
-				'default'     => 'yes',
+			'enabled'         => array(
+				'title'   => __( 'Enable/Disable', 'woo-store-plugin' ),
+				'type'    => 'checkbox',
+				'label'   => __( 'Enable Store Pickup Method', 'woo-store-plugin' ),
+				'default' => 'yes',
 			),
 			'assigned_stores' => array(
 				'title'       => __( 'Assigned Stores', 'woo-store-plugin' ),
@@ -66,7 +66,7 @@ class WSP_Shipping_Pickup  extends WC_Shipping_Method {
 				'options'     => $this->get_store_options_safe(),
 				'desc_tip'    => true,
 			),
-			'cost' => array(
+			'cost'            => array(
 				'title'       => __( 'Pickup Cost', 'woo-store-plugin' ),
 				'type'        => 'price',
 				'description' => __( 'Cost for store pickup. Use 0 for free pickup.', 'woo-store-plugin' ),
@@ -132,13 +132,9 @@ class WSP_Shipping_Pickup  extends WC_Shipping_Method {
 			return array();
 		}
 		if ( ! is_array( $stores ) ) {
-			$stores = array_map('absint', explode( ',', $stores ) );
+			$stores = array_map( 'absint', explode( ',', $stores ) );
 		}
 
 		return array_filter( array_map( 'absint', $stores ) );
 	}
-
-
-
 }
-

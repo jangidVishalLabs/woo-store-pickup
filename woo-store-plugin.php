@@ -40,12 +40,12 @@ register_deactivation_hook( __FILE__, 'wsp_clear_pickup_reminder_cron' );
 
 function wsp_schedule_pickup_reminder_cron() {
 	if ( ! wp_next_scheduled( 'wsp_pickup_reminder_event_tomorrow' ) ) {
-	wp_schedule_event( strtotime( 'tomorrow 00:05' ), 'daily', 'wsp_pickup_reminder_event_tomorrow' );
-}
+		wp_schedule_event( strtotime( 'tomorrow 00:05' ), 'daily', 'wsp_pickup_reminder_event_tomorrow' );
+	}
 
-if ( ! wp_next_scheduled( 'wsp_handle_missed_event' ) ) {
-	wp_schedule_event( strtotime( 'today 09:00' ), 'daily', 'wsp_handle_missed_event' );
-}
+	if ( ! wp_next_scheduled( 'wsp_handle_missed_event' ) ) {
+		wp_schedule_event( strtotime( 'today 09:00' ), 'daily', 'wsp_handle_missed_event' );
+	}
 
 	// 2️⃣ Reminder on pickup day morning (08:00)
 	if ( ! wp_next_scheduled( 'wsp_pickup_reminder_event_today' ) ) {
@@ -106,8 +106,8 @@ function wsp_send_pickup_reminders_tomorrow() {
 	error_log( 'WSP Cron: Looking for orders with pickup date - ' . $tomorrow );
 
 	$args = array(
-		'limit'  => -1,
-		'status' => array( 'processing', 'completed' ), // ✅ CONDITION
+		'limit'      => -1,
+		'status'     => array( 'processing', 'completed' ), // ✅ CONDITION
 		'meta_query' => array(
 			array(
 				'key'   => '_pickup_date',
@@ -139,13 +139,13 @@ function wsp_send_pickup_reminders_today() {
 		return;
 	}
 
-	$today = date( 'Y-m-d' );
+	$today    = date( 'Y-m-d' );
 	$tomorrow = wp_date( 'Y-m-d', strtotime( '+1 day' ) );
 	error_log( 'WSP Cron: Looking for orders with pickup date - ' . $today );
 
 	$args = array(
-		'limit'  => -1,
-		'status' => array( 'processing', 'completed' ), // ✅ CONDITION
+		'limit'      => -1,
+		'status'     => array( 'processing', 'completed' ), // ✅ CONDITION
 		'meta_query' => array(
 			array(
 				'key'   => '_pickup_date',
@@ -221,7 +221,7 @@ function wsp_send_pickup_reminder_email( $order, $type = 'tomorrow' ) {
 		? "Today Pickup Reminder – Order #{$order_id}"
 		: "Pickup Reminder – Order #{$order_id}";
 
-	$message  = "Dear {$first_name},\n\n";
+	$message = "Dear {$first_name},\n\n";
 
 	$message .= ( $type === 'today' )
 		? "This is a reminder to collect your order TODAY.\n\n"
@@ -264,13 +264,13 @@ function wsp_handle_missed_pickups() {
 	// Handle missed reminders for tomorrow
 	$yesterday = wp_date( 'Y-m-d', strtotime( '-1 day' ) );
 
-	$args = array(
-		'limit'  => -1,
-		'status' => array( 'processing' ),
+	$args   = array(
+		'limit'      => -1,
+		'status'     => array( 'processing' ),
 		'meta_query' => array(
 			array(
-				'key'   => '_pickup_date',
-				'value' => $yesterday,
+				'key'     => '_pickup_date',
+				'value'   => $yesterday,
 				'compare' => '<',
 				'type'    => 'DATE',
 			),
@@ -285,13 +285,13 @@ function wsp_handle_missed_pickups() {
 
 function wsp_process_missed_pickup_order( WC_Order $order ) {
 	if ( $order->get_status() === 'completed' ) {
-	error_log( "WSP Cron: Order {$order_id} already completed, skipping missed pickup logic." );
-	return;
-}
+		error_log( "WSP Cron: Order {$order_id} already completed, skipping missed pickup logic." );
+		return;
+	}
 
 	$order_id = $order->get_id();
 
-	//Ensure Store Pickup
+	// Ensure Store Pickup
 	$is_pickup = false;
 	foreach ( $order->get_shipping_methods() as $method ) {
 		if ( $method->get_method_id() === 'wsp_store_pickup' ) {
@@ -303,7 +303,7 @@ function wsp_process_missed_pickup_order( WC_Order $order ) {
 		error_log( 'WSP Cron: Order ID ' . $order_id . ' is not a store pickup, skipping.' );
 		return;
 	}
-	$pickup_date = $order->get_meta( '_pickup_date' );
+	$pickup_date      = $order->get_meta( '_pickup_date' );
 	$already_extended = $order->get_meta( '_pickup_extended' );
 	/**
 	 * Case 1 :  Not extended yet -> Extend + final Reminder
@@ -319,7 +319,7 @@ function wsp_process_missed_pickup_order( WC_Order $order ) {
 		$new_date = date( 'Y-m-d', strtotime( $pickup_date . ' +1 day' ) );
 		$order->update_meta_data( '_pickup_date', $new_date );
 		$order->update_meta_data( '_pickup_extended', 'yes' );
-		$order->update_meta_data( '_pickup_final_reminder_sent', 'yes');
+		$order->update_meta_data( '_pickup_final_reminder_sent', 'yes' );
 		$order->save();
 
 		wsp_send_final_pickup_warning_email( $order, $new_date );
@@ -334,7 +334,7 @@ function wsp_process_missed_pickup_order( WC_Order $order ) {
 	$order_id = $order->get_id();
 	wp_delete_post( $order_id, true );
 	error_log( 'WSP Cron: Order ID ' . $order_id . ' deleted from system.' );
-} 
+}
 
 function wsp_send_final_pickup_warning_email( WC_Order $order, $new_date ) {
 	$order_id   = $order->get_id();
@@ -365,4 +365,3 @@ function wsp_send_final_pickup_warning_email( WC_Order $order, $new_date ) {
 
 	wp_mail( $email, $subject, $message, $headers );
 }
-

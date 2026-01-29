@@ -18,20 +18,20 @@ class WSP_Shop_Owner {
 			'shop_owner',
 			__( 'Shop Owner', 'woo-store-plugin' ),
 			array(
-				'read' => true,
-				'edit_posts' => true,
+				'read'                  => true,
+				'edit_posts'            => true,
 
 				// Orders
-				'read_shop_order' => true,
-				'edit_shop_order' => true,
-				'edit_shop_orders' => true,
+				'read_shop_order'       => true,
+				'edit_shop_order'       => true,
+				'edit_shop_orders'      => true,
 
 				// Pickup Stores
-				'edit_pickup_store' => true,
-				'edit_pickup_stores' => true,
+				'edit_pickup_store'     => true,
+				'edit_pickup_stores'    => true,
 				'publish_pickup_stores' => true,
-				'delete_pickup_stores' => true,
-				'read_pickup_store' => true,
+				'delete_pickup_stores'  => true,
+				'read_pickup_store'     => true,
 			)
 		);
 	}
@@ -55,12 +55,15 @@ class WSP_Shop_Owner {
 			return;
 		}
 
-		$query->set( 'meta_query', array(
+		$query->set(
+			'meta_query',
 			array(
-				'key'   => '_assigned_shop_owner',
-				'value' => get_current_user_id(),
-			),
-		) );
+				array(
+					'key'   => '_assigned_shop_owner',
+					'value' => get_current_user_id(),
+				),
+			)
+		);
 	}
 
 	/**
@@ -108,13 +111,15 @@ class WSP_Shop_Owner {
 	 * Get stores assigned to shop owner
 	 */
 	private function get_store_ids_by_owner( $user_id ) {
-		return get_posts( array(
-			'post_type'   => 'pickup_store',
-			'fields'      => 'ids',
-			'meta_key'    => '_assigned_shop_owner',
-			'meta_value'  => $user_id,
-			'numberposts' => -1,
-		) );
+		return get_posts(
+			array(
+				'post_type'   => 'pickup_store',
+				'fields'      => 'ids',
+				'meta_key'    => '_assigned_shop_owner',
+				'meta_value'  => $user_id,
+				'numberposts' => -1,
+			)
+		);
 	}
 
 	/**
@@ -141,9 +146,9 @@ class WSP_Shop_Owner {
 	public function wsp_prevent_shop_owner_add_meta( $check, $object_id, $meta_key, $meta_value, $unique ) {
 		$protected_keys = array( '_assigned_shop_owner', '_pickup_zone_id' );
 
-		if ( in_array( $meta_key, $protected_keys, true ) && 
-			 current_user_can( 'edit_pickup_store' ) && 
-			 ! current_user_can( 'manage_options' ) ) {
+		if ( in_array( $meta_key, $protected_keys, true ) &&
+			current_user_can( 'edit_pickup_store' ) &&
+			! current_user_can( 'manage_options' ) ) {
 			return false;
 		}
 

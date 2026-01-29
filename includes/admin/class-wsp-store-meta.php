@@ -34,8 +34,8 @@ class WSP_Store_Meta {
 		wp_nonce_field( 'wsp_store_meta', 'wsp_store_meta_nonce' );
 		$address = get_post_meta( $post->ID, '_store_address', true );
 		$map_url = get_post_meta( $post->ID, '_store_map_url', true );
-    	$lat     = get_post_meta( $post->ID, '_store_lat', true );
-    	$lng     = get_post_meta( $post->ID, '_store_lng', true );
+		$lat     = get_post_meta( $post->ID, '_store_lat', true );
+		$lng     = get_post_meta( $post->ID, '_store_lng', true );
 		?>
 		<p>
 			<label><strong>Store Address</strong></label>
@@ -44,20 +44,20 @@ class WSP_Store_Meta {
 			</textarea>
 		</p>
 		<p>
-        <label><strong>Google Map URL</strong></label><br>
-        <input type="text" name="store_map_url" value="<?php echo esc_attr( $map_url ); ?>" style="width:100%;" />
-        <small>Example: https://maps.google.com/?q=...</small>
-    	</p>
+		<label><strong>Google Map URL</strong></label><br>
+		<input type="text" name="store_map_url" value="<?php echo esc_attr( $map_url ); ?>" style="width:100%;" />
+		<small>Example: https://maps.google.com/?q=...</small>
+		</p>
 
-    	<p>
-        <label><strong>Latitude</strong></label><br>
-        <input type="text" name="store_lat" value="<?php echo esc_attr( $lat ); ?>" />
-    	</p>
+		<p>
+		<label><strong>Latitude</strong></label><br>
+		<input type="text" name="store_lat" value="<?php echo esc_attr( $lat ); ?>" />
+		</p>
 
-    	<p>
-        <label><strong>Longitude</strong></label><br>
-        <input type="text" name="store_lng" value="<?php echo esc_attr( $lng ); ?>" />
-    	</p>
+		<p>
+		<label><strong>Longitude</strong></label><br>
+		<input type="text" name="store_lng" value="<?php echo esc_attr( $lng ); ?>" />
+		</p>
 		<?php
 	}
 	/**
@@ -101,11 +101,18 @@ class WSP_Store_Meta {
 
 
 	public function save_meta( $post_id ) {
-		if ( ! isset( $_POST['wsp_store_meta_nonce'] ) ) return;
-        if ( ! wp_verify_nonce( $_POST['wsp_store_meta_nonce'], 'wsp_store_meta' ) ) return;
-		if ( defined( 'DOING_AUTOSAVE' ) && DOING_AUTOSAVE ) return;
-		if ( get_post_type( $post_id ) != 'pickup_store' ) return;
-
+		if ( ! isset( $_POST['wsp_store_meta_nonce'] ) ) {
+			return;
+		}
+		if ( ! wp_verify_nonce( $_POST['wsp_store_meta_nonce'], 'wsp_store_meta' ) ) {
+			return;
+		}
+		if ( defined( 'DOING_AUTOSAVE' ) && DOING_AUTOSAVE ) {
+			return;
+		}
+		if ( get_post_type( $post_id ) != 'pickup_store' ) {
+			return;
+		}
 
 		// Address (optional)
 		update_post_meta(
@@ -117,43 +124,43 @@ class WSP_Store_Meta {
 		);
 
 			// Map URL (optional & sanitized)
-			$map_url = isset( $_POST['store_map_url'] ) ? 	esc_url_raw( $_POST['store_map_url'] ) : '';
-			update_post_meta( $post_id, '_store_map_url', 	$map_url );
+			$map_url = isset( $_POST['store_map_url'] ) ? esc_url_raw( $_POST['store_map_url'] ) : '';
+			update_post_meta( $post_id, '_store_map_url', $map_url );
 
 			// Latitude / Longitude
-			update_post_meta( $post_id, '_store_lat', 	sanitize_text_field( $_POST['store_lat'] ?? '' ) );
-			update_post_meta( $post_id, '_store_lng', 	sanitize_text_field( $_POST['store_lng'] ?? '' ) );
+			update_post_meta( $post_id, '_store_lat', sanitize_text_field( $_POST['store_lat'] ?? '' ) );
+			update_post_meta( $post_id, '_store_lng', sanitize_text_field( $_POST['store_lng'] ?? '' ) );
 
 			// Admin-only fields
-			if ( current_user_can( 'manage_options' ) ) {
-			update_post_meta( $post_id, '_assigned_shop_owner', 	absint( $_POST['assigned_shop_owner'] ?? 0 ) );
-			update_post_meta( $post_id, '_pickup_zone_id', absint	( $_POST['pickup_zone_id'] ?? 0 ) );
+		if ( current_user_can( 'manage_options' ) ) {
+			update_post_meta( $post_id, '_assigned_shop_owner', absint( $_POST['assigned_shop_owner'] ?? 0 ) );
+			update_post_meta( $post_id, '_pickup_zone_id', absint( $_POST['pickup_zone_id'] ?? 0 ) );
 		}
 	}
 
-	public function mandatory_title( $data , $postarr ) {
+	public function mandatory_title( $data, $postarr ) {
 		// Only validate our CPT
-    if ( $data['post_type'] !== 'pickup_store' ) {
-        return $data;
-    }
+		if ( $data['post_type'] !== 'pickup_store' ) {
+			return $data;
+		}
 
-    // Allow auto-drafts
-    if ( defined( 'DOING_AUTOSAVE' ) && DOING_AUTOSAVE ) {
-        return $data;
-    }
+		// Allow auto-drafts
+		if ( defined( 'DOING_AUTOSAVE' ) && DOING_AUTOSAVE ) {
+			return $data;
+		}
 
-    if ( empty( trim( $data['post_title'] ) ) ) {
-        wp_die(
-            __( 'Store name is mandatory.', 'wsp' ),
-            __( 'Validation Error', 'wsp' ),
-            array( 'back_link' => true )
-        );
-    }
+		if ( empty( trim( $data['post_title'] ) ) ) {
+			wp_die(
+				__( 'Store name is mandatory.', 'wsp' ),
+				__( 'Validation Error', 'wsp' ),
+				array( 'back_link' => true )
+			);
+		}
 
-    return $data;
+		return $data;
 	}
 
-	public function on_delete_remove_zone_mapping( $post_id ){
+	public function on_delete_remove_zone_mapping( $post_id ) {
 		if ( get_post_type( $post_id ) != 'pickup_store' ) {
 			return;
 		}
@@ -171,7 +178,7 @@ class WSP_Store_Meta {
 
 	public function render_custom_status_columns( $column, $post_id ) {
 		if ( $column === 'status' ) {
-		echo esc_html( get_post_status( $post_id ) );
-	}
+			echo esc_html( get_post_status( $post_id ) );
+		}
 	}
 }
