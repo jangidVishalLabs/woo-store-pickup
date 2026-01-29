@@ -16,6 +16,8 @@ class WSP_Plugin {
 		$this->define_shipping_hooks();
 		$this->define_checkout_hooks();
 		$this->define_email_hooks();
+
+		add_action( 'wp_enqueue_scripts', array( $this, 'enqueue_scripts' ) );
 	}
 	/**
 	 * Core dependencies (Non-woocommerce)
@@ -27,6 +29,7 @@ class WSP_Plugin {
 		require_once WSP_PATH . 'includes/checkout/class-wsp-checkout-fields.php';
 		require_once WSP_PATH . 'includes/emails/class-wsp-email-handler.php';
 		require_once WSP_PATH . 'includes/admin/class-wsp-admin-orders.php';
+		require_once WSP_PATH . 'includes/admin/class-wsp-show-owner.php';
 
 		$this->loader = new WSP_Loader();
 	}
@@ -73,9 +76,9 @@ class WSP_Plugin {
 		$store_meta = new WSP_Store_Meta();
 
 		$this->loader->add_action( 'init', $store_cpt, 'register_cpt' );
+
 		$this->loader->add_action( 'add_meta_boxes', $store_meta, 'add_meta_boxes' );
 		$this->loader->add_action( 'save_post', $store_meta, 'save_meta', 10, 2 );
-		$this->loader->add_action( 'admin_enqueue_scripts', $this, 'enqueue_scripts' );
 
 		$admin_orders = new WSP_Admin_Orders();
 
@@ -140,6 +143,19 @@ class WSP_Plugin {
 			$admin_orders,
 			'search_orders_by_pickup_store_hpos', 20, 2
 		);
+
+		$shop_owner = new WSP_Shop_Owner();
+
+	$this->loader->add_action( 'init', $shop_owner, 'register_role' );
+	
+
+// Restrict Pickup Store CPT
+	$this->loader->add_action( 'pre_get_posts', $shop_owner, 'filter_pickup_store_list' );
+	$this->loader->add_filter( 'woocommerce_orders_table_query_clauses', $shop_owner, 'filter_orders_by_store_hpos', 10, 2 );
+	$this->loader->add_action( 'admin_menu', $shop_owner, 'cleanup_admin_menus' );
+	$this->loader->add_filter( 'update_post_metadata', $shop_owner, 'prevent_shop_owner_meta_change', 10, 5 );
+	$this->loader->add_filter( 'add_post_metadata', $shop_owner, 'wsp_prevent_shop_owner_add_meta', 10, 5 );
+
 	}
 	
 	private function define_shipping_hooks() {
@@ -160,15 +176,11 @@ class WSP_Plugin {
 		if ( is_checkout() ) {
 			wp_enqueue_script(
 				'wsp-checkout',
-				plugin_dir_url( __FILE__ ) . 'assets/js/wsp-checkout.js',
-				array( 'jquery' ),
+				 plugin_dir_url(__FILE__) . 'assets/js/wsp-checkout.js',
+            array('jquery', 'wc-checkout'),
 				WSP_VERSION,
 				true
 			);
-
-			wp_enqueue_script( 'select2' );
-			wp_enqueue_style( 'select2' );
-
 		}
 	}
 	

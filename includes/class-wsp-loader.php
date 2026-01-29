@@ -9,8 +9,8 @@ if ( class_exists( 'WSP_Loader' ) ) {
 
 class WSP_Loader {
 
-	protected $actions = array();
-	protected $filters = array();
+	public $actions = array();
+	public $filters = array();
 
 	public function add_action(
 		$hook,

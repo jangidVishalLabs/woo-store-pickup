@@ -39,13 +39,13 @@ register_activation_hook( __FILE__, 'wsp_schedule_pickup_reminder_cron' );
 register_deactivation_hook( __FILE__, 'wsp_clear_pickup_reminder_cron' );
 
 function wsp_schedule_pickup_reminder_cron() {
-	error_log( 'WSP Cron: wsp_schedule_pickup_reminder_cron called during plugin activation.' );
 	if ( ! wp_next_scheduled( 'wsp_pickup_reminder_event_tomorrow' ) ) {
-		error_log( 'WSP Cron: Scheduling wsp_pickup_reminder_event_tomorrow at ' . date( 'Y-m-d H:i:s', strtotime( 'tomorrow 00:05' ) ) );
-		wp_schedule_event( strtotime( 'tomorrow 00:05' ), 'daily', 'wsp_pickup_reminder_event_tomorrow' );
-	} else {
-		error_log( 'WSP Cron: wsp_pickup_reminder_event_tomorrow already scheduled.' );
-	}
+	wp_schedule_event( strtotime( 'tomorrow 00:05' ), 'daily', 'wsp_pickup_reminder_event_tomorrow' );
+}
+
+if ( ! wp_next_scheduled( 'wsp_handle_missed_event' ) ) {
+	wp_schedule_event( strtotime( 'today 09:00' ), 'daily', 'wsp_handle_missed_event' );
+}
 
 	// 2️⃣ Reminder on pickup day morning (08:00)
 	if ( ! wp_next_scheduled( 'wsp_pickup_reminder_event_today' ) ) {
@@ -73,6 +73,7 @@ function wsp_clear_pickup_reminder_cron() {
 	error_log( 'WSP Cron: Clearing wsp_pickup_reminder_event_today.' );
 	wp_clear_scheduled_hook( 'wsp_pickup_reminder_event_today' );
 	error_log( 'WSP Cron: wsp_clear_pickup_reminder_cron completed.' );
+	wp_clear_scheduled_hook( 'wsp_handle_missed_event' );
 }
 
 /**
@@ -87,6 +88,8 @@ add_action(
 	'wsp_pickup_reminder_event_today',
 	'wsp_send_pickup_reminders_today'
 );
+
+add_action( 'wsp_handle_missed_event', 'wsp_handle_missed_pickups' );
 
 /**
  * Find tomorrow pickup orders
@@ -253,5 +256,113 @@ function wsp_send_pickup_reminder_email( $order, $type = 'tomorrow' ) {
 	} else {
 		error_log( 'WSP Cron: Failed to send email for order ID - ' . $order_id );
 	}
+}
+
+function wsp_handle_missed_pickups() {
+	error_log( 'WSP Cron: wsp_handle_missed_pickups event triggered.' );
+
+	// Handle missed reminders for tomorrow
+	$yesterday = wp_date( 'Y-m-d', strtotime( '-1 day' ) );
+
+	$args = array(
+		'limit'  => -1,
+		'status' => array( 'processing' ),
+		'meta_query' => array(
+			array(
+				'key'   => '_pickup_date',
+				'value' => $yesterday,
+				'compare' => '<',
+				'type'    => 'DATE',
+			),
+		),
+	);
+	$orders = wc_get_orders( $args );
+
+	foreach ( $orders as $order ) {
+		wsp_process_missed_pickup_order( $order );
+	}
+}
+
+function wsp_process_missed_pickup_order( WC_Order $order ) {
+	if ( $order->get_status() === 'completed' ) {
+	error_log( "WSP Cron: Order {$order_id} already completed, skipping missed pickup logic." );
+	return;
+}
+
+	$order_id = $order->get_id();
+
+	//Ensure Store Pickup
+	$is_pickup = false;
+	foreach ( $order->get_shipping_methods() as $method ) {
+		if ( $method->get_method_id() === 'wsp_store_pickup' ) {
+			$is_pickup = true;
+			break;
+		}
+	}
+	if ( ! $is_pickup ) {
+		error_log( 'WSP Cron: Order ID ' . $order_id . ' is not a store pickup, skipping.' );
+		return;
+	}
+	$pickup_date = $order->get_meta( '_pickup_date' );
+	$already_extended = $order->get_meta( '_pickup_extended' );
+	/**
+	 * Case 1 :  Not extended yet -> Extend + final Reminder
+	 */
+	if ( empty( $already_extended ) ) {
+		$final_sent = $order->get_meta( '_pickup_final_reminder_sent' );
+
+		if ( ! empty( $final_sent ) ) {
+				error_log( "WSP Cron: Final reminder already sent for order {$order_id}, skipping." );
+				return;
+		}
+
+		$new_date = date( 'Y-m-d', strtotime( $pickup_date . ' +1 day' ) );
+		$order->update_meta_data( '_pickup_date', $new_date );
+		$order->update_meta_data( '_pickup_extended', 'yes' );
+		$order->update_meta_data( '_pickup_final_reminder_sent', 'yes');
+		$order->save();
+
+		wsp_send_final_pickup_warning_email( $order, $new_date );
+		error_log( 'WSP Cron: Order ID ' . $order_id . ' pickup extended to ' . $new_date . ' and final reminder sent.' );
+		return;
+	}
+	/**
+	 * CASE 2: Already extended -> Cancel Order
+	 */
+	$order->update_status( 'cancelled', 'Order cancelled due to uncollected pickup after extension.' );
+	error_log( 'WSP Cron: Order ID ' . $order_id . ' cancelled due to uncollected pickup after extension.' );
+	$order_id = $order->get_id();
+	wp_delete_post( $order_id, true );
+	error_log( 'WSP Cron: Order ID ' . $order_id . ' deleted from system.' );
+} 
+
+function wsp_send_final_pickup_warning_email( WC_Order $order, $new_date ) {
+	$order_id   = $order->get_id();
+	$email      = $order->get_billing_email();
+	$first_name = $order->get_billing_first_name();
+
+	$store_name    = $order->get_meta( '_pickup_store_name' );
+	$store_address = $order->get_meta( '_pickup_store_address' );
+	$map_url       = $order->get_meta( '_pickup_store_map' );
+
+	$subject = "Final Pickup Reminder – Order #{$order_id}";
+
+	$message  = "Dear {$first_name},\n\n";
+	$message .= "This is a final reminder to collect your order. Your pickup date has been extended to {$new_date}.\n\n";
+	$message .= "Order ID: #{$order_id}\n";
+	$message .= "New Pickup Date: {$new_date}\n";
+	$message .= "Store: {$store_name}\n";
+	$message .= "Address: {$store_address}\n";
+
+	if ( $map_url ) {
+		$message .= "Map: {$map_url}\n";
+	}
+
+	$message .= "\nPlease note that if the order is not collected by this date, it will be cancelled.\n";
+	$message .= "Thank you for shopping with us!\n— Store Team";
+
+	$headers = array( 'Content-Type: text/plain; charset=UTF-8' );
+
+	wp_mail( $email, $subject, $message, $headers );
 }
 

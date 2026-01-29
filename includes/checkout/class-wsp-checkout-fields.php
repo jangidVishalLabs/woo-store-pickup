@@ -287,11 +287,16 @@ public static function wsp_convert_google_maps_to_embed( $url, $fallback_address
 		<?php
 	}
 
-	function wsp_get_pickup_stores_ajax() {
+	public function wsp_get_pickup_stores_ajax() {
 
-	if ( ! WC()->session ) {
-		wp_send_json_error();
-	}
+    // Initialize WC if needed
+    if ( ! did_action( 'woocommerce_init' ) ) {
+        wp_send_json_error( 'WooCommerce not initialized' );
+    }
+
+    if ( ! WC()->session ) {
+        wp_send_json_error( 'No session available' );
+    }
 
 	$chosen = WC()->session->get( 'chosen_shipping_methods' );
 
@@ -328,10 +333,8 @@ public static function wsp_convert_google_maps_to_embed( $url, $fallback_address
 	}
 
 	wp_send_json_success( $options );
-}
-
-
 
 	
 }
 
+}
