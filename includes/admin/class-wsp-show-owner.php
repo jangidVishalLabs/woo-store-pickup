@@ -138,6 +138,42 @@ class WSP_Shop_Owner {
 	}
 
 	/**
+	 *
+	 */
+	public function filter_orders_legacy( $query ) {
+		if ( ! is_admin() || ! $query->is_main_query() ) {
+			return;
+		}
+
+		if ( $query->get( 'post_type' ) !== 'shop_order' ) {
+			return;
+		}
+
+		if ( current_user_can( 'manage_options' ) ) {
+			return;
+		}
+
+		$store_ids = $this->get_store_ids_by_owner( get_current_user_id() );
+
+		if ( empty( $store_ids ) ) {
+			$query->set( 'post__in', array( 0 ) );
+			return;
+		}
+
+		$query->set(
+			'meta_query',
+			array(
+				array(
+					'key'     => '_pickup_store_id',
+					'value'   => $store_ids,
+					'compare' => 'IN',
+				),
+			)
+		);
+	}
+
+
+	/**
 	 * Get store IDs assigned to a specific shop owner.
 	 *
 	 * @param int $user_id The ID of the shop owner user.
@@ -177,6 +213,14 @@ class WSP_Shop_Owner {
 
 		// Block shop owners, allow admins
 		if ( current_user_can( 'edit_pickup_store' ) && ! current_user_can( 'manage_options' ) ) {
+			error_log(
+				sprintf(
+					'WSP SECURITY: User %d tried to modify %s on store %d',
+					get_current_user_id(),
+					$meta_key,
+					$object_id
+				)
+			);
 			return false;
 		}
 
@@ -224,5 +268,37 @@ class WSP_Shop_Owner {
 		remove_menu_page( 'woocommerce-settings' );
 		remove_menu_page( 'woocommerce-reports' );
 		remove_menu_page( 'tools.php' );
+	}
+
+	public function block_unassigned_access() {
+		if ( ! is_admin() ) {
+			return;
+		}
+
+		if ( ! isset( $_GET['post'], $_GET['action'] ) ) {
+			return;
+		}
+
+		if ( $_GET['action'] !== 'edit' ) {
+			return;
+		}
+
+		$post_id = absint( $_GET['post'] );
+		if ( get_post_type( $post_id ) !== 'pickup_store' ) {
+			return;
+		}
+
+		if ( current_user_can( 'manage_options' ) ) {
+			return;
+		}
+
+		$assigned_owner = get_post_meta( $post_id, '_assigned_shop_owner', true );
+		if ( $assigned_owner != get_current_user_id() ) {
+			wp_die(
+				__( 'You do not have permission to edit this store.', 'woo-store-plugin' ),
+				__( 'Permission Denied', 'woo-store-plugin' ),
+				array( 'response' => 403 )
+			);
+		}
 	}
 }

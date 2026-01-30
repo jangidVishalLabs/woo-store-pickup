@@ -61,6 +61,12 @@ jQuery(function ($) {
             success: function (response) {
                 if (response.success) {
                     $storeSelect.html(response.data);
+
+                     if (response.data.indexOf('No stores available') !== -1) {
+        $storeSelect.prop('disabled', true);
+    } else {
+        $storeSelect.prop('disabled', false);
+    }
                 } else {
                     $storeSelect.html('<option value="">No stores available</option>');
                 }

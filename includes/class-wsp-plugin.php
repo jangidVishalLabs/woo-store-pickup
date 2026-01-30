@@ -206,9 +206,11 @@ class WSP_Plugin {
 		// Restrict Pickup Store CPT
 		$this->loader->add_action( 'pre_get_posts', $shop_owner, 'filter_pickup_store_list' );
 		$this->loader->add_filter( 'woocommerce_orders_table_query_clauses', $shop_owner, 'filter_orders_by_store_hpos', 10, 2 );
+		$this->loader->add_action( 'pre_get_posts', $shop_owner, 'filter_orders_legacy', 10, 2 );
 		$this->loader->add_action( 'admin_menu', $shop_owner, 'cleanup_admin_menus' );
 		$this->loader->add_filter( 'update_post_metadata', $shop_owner, 'prevent_shop_owner_meta_change', 10, 5 );
 		$this->loader->add_filter( 'add_post_metadata', $shop_owner, 'wsp_prevent_shop_owner_add_meta', 10, 5 );
+		$this->loader->add_filter( 'admin_init', $shop_owner, 'block_unassigned_access' );
 	}
 
 	private function define_shipping_hooks() {

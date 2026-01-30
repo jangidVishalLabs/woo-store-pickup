@@ -82,9 +82,6 @@ class WSP_Checkout_Fields {
 	 * @return void
 	 */
 	public function render_fields( $checkout ) {
-		if ( ! $this->is_store_pickup() ) {
-			return;
-		}
 
 		echo '<div id="wsp-pickup-fields" class="wsp-checkout-fields">';
 		echo '<h3>' . esc_html__( 'Store Pickup Details', 'woo-store-plugin' ) . '</h3>';
@@ -186,7 +183,17 @@ class WSP_Checkout_Fields {
 				esc_html__( 'Please select a preferred pickup date.', 'woo-store-plugin' ),
 				'error'
 			);
-		}
+		} else {
+	$selected = strtotime( sanitize_text_field( $_POST['wsp_pickup_date'] ) );
+	$tomorrow = strtotime( date( 'Y-m-d', strtotime( '+1 day' ) ) );
+
+	if ( $selected < $tomorrow ) {
+		wc_add_notice(
+			esc_html__( 'Same-day or past-date pickup is not allowed. Please select a future date.', 'woo-store-plugin' ),
+			'error'
+		);
+	}
+}
 	}
 
 	/**
@@ -384,9 +391,15 @@ class WSP_Checkout_Fields {
 		}
 
 		$store_ids = (array) $shipping_method->get_option( 'assigned_stores', array() );
+		if ( empty( $store_ids ) ) {
+	wp_send_json_success(
+		'<option value="">' . esc_html__( 'No stores available', 'woo-store-plugin' ) . '</option>'
+	);
+}
+
 
 		$options = '<option value="">Select a store</option>';
-
+			
 		if ( $store_ids ) {
 			$stores = get_posts(
 				array(
