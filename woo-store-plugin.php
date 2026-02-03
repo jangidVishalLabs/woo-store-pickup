@@ -32,12 +32,12 @@ require_once WSP_PATH . 'includes/cron/class-wsp-store-cron.php';
 /**
  * Instantiate and run the main plugin functionality.
  *
- * Creates a new WSP_Plugin instance and executes the plugin initialization.
+ * Gets the singleton instance of WSP_Plugin and executes the plugin initialization.
  *
  * @return void
  */
 function run_wsp_plugin() {
-	$plugin = new WSP_Plugin();
+	$plugin = WSP_Plugin::get_instance();
 	$plugin->run();
 }
 run_wsp_plugin();

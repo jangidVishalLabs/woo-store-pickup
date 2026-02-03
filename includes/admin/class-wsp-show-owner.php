@@ -12,11 +12,50 @@ if ( class_exists( 'WSP_Shop_Owner' ) ) {
  *
  * Manages the Shop Owner user role, handles role-based filtering of pickup stores and orders,
  * and prevents shop owners from modifying protected metadata.
+ * Implements Singleton pattern to ensure only one instance exists.
  *
  * @class WSP_Shop_Owner
  * @version 1.0.0
  */
 class WSP_Shop_Owner {
+
+	/**
+	 * The single instance of the class.
+	 *
+	 * @var WSP_Shop_Owner
+	 */
+	private static $instance = null;
+
+	/**
+	 * Private constructor to prevent direct instantiation.
+	 */
+	private function __construct() {}
+
+	/**
+	 * Get the single instance of the class.
+	 *
+	 * @return WSP_Shop_Owner The single instance.
+	 */
+	public static function get_instance() {
+		if ( null === self::$instance ) {
+			self::$instance = new self();
+		}
+		return self::$instance;
+	}
+
+	/**
+	 * Prevent cloning of the instance.
+	 *
+	 * @return void
+	 */
+	private function __clone() {}
+
+	/**
+	 * Prevent unserializing of the instance.
+	 *
+	 * @return void
+	 */
+	private function __wakeup() {}
 
 	/**
 	 * Register the Shop Owner user role.

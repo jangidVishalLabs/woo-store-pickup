@@ -13,11 +13,50 @@ if ( class_exists( 'WSP_Admin_Orders' ) ) {
  * Handles admin order list customizations including custom columns for pickup store and date,
  * filtering capabilities, and display of pickup details in the order admin interface.
  * Supports both HPOS (High-Performance Order Storage) and legacy post-based orders.
+ * Implements Singleton pattern to ensure only one instance exists.
  *
  * @class WSP_Admin_Orders
  * @version 1.0.0
  */
 class WSP_Admin_Orders {
+
+	/**
+	 * The single instance of the class.
+	 *
+	 * @var WSP_Admin_Orders
+	 */
+	private static $instance = null;
+
+	/**
+	 * Private constructor to prevent direct instantiation.
+	 */
+	private function __construct() {}
+
+	/**
+	 * Get the single instance of the class.
+	 *
+	 * @return WSP_Admin_Orders The single instance.
+	 */
+	public static function get_instance() {
+		if ( null === self::$instance ) {
+			self::$instance = new self();
+		}
+		return self::$instance;
+	}
+
+	/**
+	 * Prevent cloning of the instance.
+	 *
+	 * @return void
+	 */
+	private function __clone() {}
+
+	/**
+	 * Prevent unserializing of the instance.
+	 *
+	 * @return void
+	 */
+	private function __wakeup() {}
 
 	/**
 	 * Add custom columns to the order list table.

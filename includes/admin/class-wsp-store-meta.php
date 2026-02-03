@@ -8,7 +8,55 @@ if ( class_exists( 'WSP_Store_Meta' ) ) {
 	return;
 }
 
+/**
+ * WSP_Store_Meta class.
+ *
+ * Handles meta box registration, rendering, and saving for the Pickup Store CPT.
+ * Manages store details (address, map URL, coordinates) and admin-only assignment options.
+ * Implements Singleton pattern to ensure only one instance exists.
+ *
+ * @class WSP_Store_Meta
+ * @version 1.0.0
+ */
 class WSP_Store_Meta {
+
+	/**
+	 * The single instance of the class.
+	 *
+	 * @var WSP_Store_Meta
+	 */
+	private static $instance = null;
+
+	/**
+	 * Private constructor to prevent direct instantiation.
+	 */
+	private function __construct() {}
+
+	/**
+	 * Get the single instance of the class.
+	 *
+	 * @return WSP_Store_Meta The single instance.
+	 */
+	public static function get_instance() {
+		if ( null === self::$instance ) {
+			self::$instance = new self();
+		}
+		return self::$instance;
+	}
+
+	/**
+	 * Prevent cloning of the instance.
+	 *
+	 * @return void
+	 */
+	private function __clone() {}
+
+	/**
+	 * Prevent unserializing of the instance.
+	 *
+	 * @return void
+	 */
+	private function __wakeup() {}
 
 	public function add_meta_boxes() {
 		add_meta_box(

@@ -13,11 +13,50 @@ if ( class_exists( 'WSP_Checkout_Fields' ) ) {
  * Handles rendering of pickup store and date selection fields on the checkout page,
  * validation of these fields, saving order metadata, and displaying pickup details
  * to both customers and administrators.
+ * Implements Singleton pattern to ensure only one instance exists.
  *
  * @class WSP_Checkout_Fields
  * @version 1.0.0
  */
 class WSP_Checkout_Fields {
+
+	/**
+	 * The single instance of the class.
+	 *
+	 * @var WSP_Checkout_Fields
+	 */
+	private static $instance = null;
+
+	/**
+	 * Private constructor to prevent direct instantiation.
+	 */
+	private function __construct() {}
+
+	/**
+	 * Get the single instance of the class.
+	 *
+	 * @return WSP_Checkout_Fields The single instance.
+	 */
+	public static function get_instance() {
+		if ( null === self::$instance ) {
+			self::$instance = new self();
+		}
+		return self::$instance;
+	}
+
+	/**
+	 * Prevent cloning of the instance.
+	 *
+	 * @return void
+	 */
+	private function __clone() {}
+
+	/**
+	 * Prevent unserializing of the instance.
+	 *
+	 * @return void
+	 */
+	private function __wakeup() {}
 
 	/**
 	 * Check if the store pickup shipping method is selected.

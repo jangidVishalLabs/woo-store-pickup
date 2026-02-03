@@ -12,11 +12,19 @@ if ( class_exists( 'WSP_Plugin' ) ) {
  *
  * Main plugin class responsible for initializing and managing all plugin functionality.
  * This includes loading dependencies, registering hooks, and managing the plugin lifecycle.
+ * Implements Singleton pattern to ensure only one instance exists.
  *
  * @class WSP_Plugin
  * @version 1.0.0
  */
 class WSP_Plugin {
+	/**
+	 * The single instance of the class.
+	 *
+	 * @var WSP_Plugin
+	 */
+	private static $instance = null;
+
 	/**
 	 * The loader instance that manages actions and filters.
 	 *
@@ -25,12 +33,12 @@ class WSP_Plugin {
 	protected $loader;
 
 	/**
-	 * Constructor.
+	 * Private constructor to prevent direct instantiation.
 	 *
 	 * Loads dependencies, defines hooks for admin, shipping, checkout, and email functionality,
 	 * and enqueues necessary scripts.
 	 */
-	public function __construct() {
+	private function __construct() {
 		$this->load_dependencies();
 		$this->define_admin_hooks();
 		$this->define_shipping_hooks();
@@ -39,6 +47,33 @@ class WSP_Plugin {
 
 		add_action( 'wp_enqueue_scripts', array( $this, 'enqueue_scripts' ) );
 	}
+
+	/**
+	 * Get the single instance of the class.
+	 *
+	 * @return WSP_Plugin The single instance.
+	 */
+	public static function get_instance() {
+		if ( null === self::$instance ) {
+			self::$instance = new self();
+		}
+		return self::$instance;
+	}
+
+	/**
+	 * Prevent cloning of the instance.
+	 *
+	 * @return void
+	 */
+	private function __clone() {}
+
+	/**
+	 * Prevent unserializing of the instance.
+	 *
+	 * @return void
+	 */
+	private function __wakeup() {}
+
 	/**
 	 * Load plugin dependencies.
 	 *
@@ -56,7 +91,7 @@ class WSP_Plugin {
 		require_once WSP_PATH . 'includes/admin/class-wsp-admin-orders.php';
 		require_once WSP_PATH . 'includes/admin/class-wsp-show-owner.php';
 
-		$this->loader = new WSP_Loader();
+		$this->loader = WSP_Loader::get_instance();
 	}
 	/**
 	 * Load the shipping method class after WooCommerce is initialized.
@@ -90,7 +125,7 @@ class WSP_Plugin {
 	 * @return void
 	 */
 	private function define_checkout_hooks() {
-		$checkout = new WSP_Checkout_Fields();
+		$checkout = WSP_Checkout_Fields::get_instance();
 
 		$this->loader->add_action( 'woocommerce_after_order_notes', $checkout, 'render_fields' );
 		$this->loader->add_action( 'woocommerce_checkout_create_order', $checkout, 'save_fields', 20, 1 );
@@ -121,8 +156,8 @@ class WSP_Plugin {
 	 * @return void
 	 */
 	private function define_admin_hooks() {
-		$store_cpt  = new WSP_Store_CPT();
-		$store_meta = new WSP_Store_Meta();
+		$store_cpt  = WSP_Store_CPT::get_instance();
+		$store_meta = WSP_Store_Meta::get_instance();
 
 		$this->loader->add_action( 'init', $store_cpt, 'register_cpt' );
 
@@ -133,7 +168,7 @@ class WSP_Plugin {
 		$this->loader->add_filter( 'manage_pickup_store_posts_columns', $store_meta, 'custom_status_columns' );
 		$this->loader->add_action( 'manage_pickup_store_posts_custom_column', $store_meta, 'render_custom_status_columns', 10, 2 );
 
-		$admin_orders = new WSP_Admin_Orders();
+		$admin_orders = WSP_Admin_Orders::get_instance();
 
 		// HPOS (High-Performance Order Storage) Hooks
 		$this->loader->add_filter(
@@ -199,7 +234,7 @@ class WSP_Plugin {
 			2
 		);
 
-		$shop_owner = new WSP_Shop_Owner();
+		$shop_owner = WSP_Shop_Owner::get_instance();
 
 		$this->loader->add_action( 'init', $shop_owner, 'register_role' );
 
@@ -254,7 +289,7 @@ class WSP_Plugin {
 	 * @return void
 	 */
 	private function define_email_hooks() {
-		$email_handler = new WSP_Email_Handler();
+		$email_handler = WSP_Email_Handler::get_instance();
 
 		$this->loader->add_action( 'woocommerce_email_order_details', $email_handler, 'add_pickup_details_to_email', 20, 4 );
 	}

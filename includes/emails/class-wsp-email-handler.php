@@ -12,11 +12,51 @@ if ( class_exists( 'WSP_Email_Handler' ) ) {
  *
  * Handles the addition of pickup details to WooCommerce order email notifications.
  * Formats pickup information for both HTML and plain text email formats.
+ * Implements Singleton pattern to ensure only one instance exists.
  *
  * @class WSP_Email_Handler
  * @version 1.0.0
  */
 class WSP_Email_Handler {
+
+	/**
+	 * The single instance of the class.
+	 *
+	 * @var WSP_Email_Handler
+	 */
+	private static $instance = null;
+
+	/**
+	 * Private constructor to prevent direct instantiation.
+	 */
+	private function __construct() {}
+
+	/**
+	 * Get the single instance of the class.
+	 *
+	 * @return WSP_Email_Handler The single instance.
+	 */
+	public static function get_instance() {
+		if ( null === self::$instance ) {
+			self::$instance = new self();
+		}
+		return self::$instance;
+	}
+
+	/**
+	 * Prevent cloning of the instance.
+	 *
+	 * @return void
+	 */
+	private function __clone() {}
+
+	/**
+	 * Prevent unserializing of the instance.
+	 *
+	 * @return void
+	 */
+	private function __wakeup() {}
+
 	/**
 	 * Add pickup details to WooCommerce order emails.
 	 *
