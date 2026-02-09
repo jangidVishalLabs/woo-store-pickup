@@ -7,153 +7,153 @@ if ( class_exists( 'WSP_Shop_Owner' ) ) {
 	return;
 }
 
-/**
- * WSP_Shop_Owner class.
- *
- * Manages the Shop Owner user role, handles role-based filtering of pickup stores and orders,
- * and prevents shop owners from modifying protected metadata.
- *
- * @class WSP_Shop_Owner
- * @version 1.0.0
- */
 class WSP_Shop_Owner {
 
 	/**
-	 * Register the Shop Owner user role.
-	 *
-	 * Creates a custom user role with specific capabilities for managing
-	 * pickup stores and shop orders. Only creates the role if it doesn't already exist.
-	 *
-	 * @return void
+	 * Register (or silently update) the shop_owner role.
+	 * Idempotent: add_cap() is a no-op when the cap already exists.
 	 */
 	public function register_role() {
-		if ( get_role( 'shop_owner' ) ) {
+		error_log( '[WSP_Shop_Owner] Starting role registration' );
+
+		$role = get_role( 'shop_owner' );
+
+		if ( ! $role ) {
+			error_log( '[WSP_Shop_Owner] shop_owner role does not exist, creating it' );
+			add_role(
+				'shop_owner',
+				__( 'Shop Owner', 'woo-store-plugin' ),
+				array( 'read' => true )
+			);
+			$role = get_role( 'shop_owner' );
+		}
+
+		if ( ! $role ) {
+			error_log( '[WSP_Shop_Owner] ERROR: Failed to create or retrieve shop_owner role' );
 			return;
 		}
 
-		add_role(
-			'shop_owner',
-			__( 'Shop Owner', 'woo-store-plugin' ),
-			array(
-				'read'                  => true,
-				'edit_posts'            => true,
+		error_log( '[WSP_Shop_Owner] shop_owner role retrieved successfully' );
 
-				// Orders
-				'read_shop_order'       => true,
-				'edit_shop_order'       => true,
-				'edit_shop_orders'      => true,
-
-				// Pickup Stores
-				'edit_pickup_store'     => true,
-				'edit_pickup_stores'    => true,
-				'publish_pickup_stores' => true,
-				'delete_pickup_stores'  => true,
-				'read_pickup_store'     => true,
-			)
+		$caps = array(
+			'read_shop_orders',
+			'read_shop_order',
+			'edit_shop_order',
+			'edit_shop_orders',
+			'edit_others_shop_orders',
+			'edit_published_shop_orders',
+			'publish_shop_orders',
+			'edit_private_shop_orders',
+			'read_private_shop_orders',
+			'read_pickup_store',
+			'edit_pickup_store',
+			'edit_pickup_stores',
+			'publish_pickup_stores',
+			'delete_pickup_stores',
+			'edit_posts',
+			'read',
 		);
+
+		foreach ( $caps as $cap ) {
+			$role->add_cap( $cap );
+		}
+
+		error_log( '[WSP_Shop_Owner] All capabilities added to shop_owner role' );
 	}
 
-	/**
-	 * Filter the Pickup Store list to show only assigned stores for Shop Owners.
-	 *
-	 * Restricts the pickup store post list in the admin to show only stores
-	 * assigned to the current shop owner user. Admins see all stores.
-	 *
-	 * @param WP_Query $query The WP_Query object being executed.
-	 * @return void
-	 */
+	// ── Pickup-store list filtering ─────────────────────────────
 	public function filter_pickup_store_list( $query ) {
+		error_log( '[WSP_Shop_Owner] filter_pickup_store_list called' );
+
 		if ( ! is_admin() || ! $query->is_main_query() ) {
+			error_log( '[WSP_Shop_Owner] Skipping filter: not admin or not main query' );
 			return;
 		}
-
 		if ( $query->get( 'post_type' ) !== 'pickup_store' ) {
+			error_log( '[WSP_Shop_Owner] Skipping filter: post_type is not pickup_store' );
+			return;
+		}
+		if ( current_user_can( 'manage_options' ) ) {
+			error_log( '[WSP_Shop_Owner] Skipping filter: user is admin' );
 			return;
 		}
 
-		$user = wp_get_current_user();
-
-		// Only filter for shop owners, not admins
-		if ( ! in_array( 'shop_owner', (array) $user->roles, true ) ) {
-			return;
-		}
+		$user_id = get_current_user_id();
+		error_log( '[WSP_Shop_Owner] Filtering pickup stores for user ID: ' . $user_id );
 
 		$query->set(
 			'meta_query',
 			array(
 				array(
 					'key'   => '_assigned_shop_owner',
-					'value' => get_current_user_id(),
+					'value' => $user_id,
 				),
 			)
 		);
 	}
 
-	/**
-	 * Filter HPOS (High-Performance Order Storage) orders by shop owner's stores.
-	 *
-	 * Modifies the query to show only orders with pickup store IDs assigned to the current shop owner.
-	 * Admins see all orders regardless of assignment.
-	 *
-	 * @param array    $clauses Database query clauses (join, where).
-	 * @param WP_Query $query   The WP_Query object.
-	 * @return array Modified query clauses.
-	 */
+	// ── HPOS order-list filtering ───────────────────────────────
 	public function filter_orders_by_store_hpos( $clauses, $query ) {
 		global $wpdb;
+		error_log( '[WSP_Shop_Owner] filter_orders_by_store_hpos called' );
 
-		// Only run in admin
-		if ( ! is_admin() ) {
+		if ( ! is_admin() || current_user_can( 'manage_options' ) ) {
+			error_log( '[WSP_Shop_Owner] Skipping HPOS filter: not admin or user is admin' );
+			return $clauses;
+		}
+		if ( ! current_user_can( 'edit_shop_orders' ) ) {
+			error_log( '[WSP_Shop_Owner] Skipping HPOS filter: user cannot edit shop orders' );
 			return $clauses;
 		}
 
-		$user = wp_get_current_user();
-
-		// Only filter for shop owners
-		if ( ! in_array( 'shop_owner', (array) $user->roles, true ) ) {
-			return $clauses;
-		}
-
-		$store_ids = $this->get_store_ids_by_owner( get_current_user_id() );
+		$user_id = get_current_user_id();
+		$store_ids = $this->get_store_ids_by_owner( $user_id );
+		error_log( '[WSP_Shop_Owner] User ID: ' . $user_id . ', Store IDs: ' . print_r( $store_ids, true ) );
 
 		if ( empty( $store_ids ) ) {
-			// No stores = no orders
+			error_log( '[WSP_Shop_Owner] No stores found for user, blocking all orders' );
 			$clauses['where'] .= ' AND 1=0';
 			return $clauses;
 		}
 
-		$ids = implode( ',', array_map( 'absint', $store_ids ) );
+		$ids   = implode( ',', array_map( 'absint', $store_ids ) );
+		$alias = 'wsp_owner_store_meta';
+		error_log( '[WSP_Shop_Owner] Filtering HPOS orders by store IDs: ' . $ids );
 
-		// Add JOIN if not already there
-		if ( strpos( $clauses['join'], 'shop_owner_store_meta' ) === false ) {
-			$clauses['join'] .= " INNER JOIN {$wpdb->prefix}wc_orders_meta AS shop_owner_store_meta 
-				ON {$wpdb->prefix}wc_orders.id = shop_owner_store_meta.order_id";
+		if ( strpos( $clauses['join'], $alias ) === false ) {
+			$clauses['join'] .= " INNER JOIN {$wpdb->prefix}wc_orders_meta AS {$alias}
+				ON {$wpdb->prefix}wc_orders.id = {$alias}.order_id";
 		}
 
-		// Add WHERE condition
-		$clauses['where'] .= " AND shop_owner_store_meta.meta_key = '_pickup_store_id' 
-			AND shop_owner_store_meta.meta_value IN ({$ids})";
+		$clauses['where'] .= "
+			AND {$alias}.meta_key   = '_pickup_store_id'
+			AND {$alias}.meta_value IN ({$ids})
+		";
 
+		error_log( '[WSP_Shop_Owner] HPOS filter applied successfully' );
 		return $clauses;
 	}
 
-	/**
-	 *
-	 */
+	// ── Legacy order-list filtering ─────────────────────────────
 	public function filter_orders_legacy( $query ) {
+		error_log( '[WSP_Shop_Owner] filter_orders_legacy called' );
+
 		if ( ! is_admin() || ! $query->is_main_query() ) {
+			error_log( '[WSP_Shop_Owner] Skipping legacy filter: not admin or not main query' );
 			return;
 		}
-
 		if ( $query->get( 'post_type' ) !== 'shop_order' ) {
+			error_log( '[WSP_Shop_Owner] Skipping legacy filter: post_type is not shop_order' );
 			return;
 		}
-
 		if ( current_user_can( 'manage_options' ) ) {
+			error_log( '[WSP_Shop_Owner] Skipping legacy filter: user is admin' );
 			return;
 		}
 
-		$store_ids = $this->get_store_ids_by_owner( get_current_user_id() );
+		$user_id = get_current_user_id();
+		$store_ids = $this->get_store_ids_by_owner( $user_id );
+		error_log( '[WSP_Shop_Owner] Legacy filter - User ID: ' . $user_id . ', Store IDs: ' . print_r( $store_ids, true ) );
 
 		if ( empty( $store_ids ) ) {
 			$query->set( 'post__in', array( 0 ) );
@@ -172,133 +172,146 @@ class WSP_Shop_Owner {
 		);
 	}
 
-
+	// ── Per-order capability gate ───────────────────────────────
 	/**
-	 * Get store IDs assigned to a specific shop owner.
+	 * STRICT RULES — breaking any of these causes an infinite loop:
 	 *
-	 * @param int $user_id The ID of the shop owner user.
-	 * @return array Array of pickup store post IDs assigned to the user.
+	 *   1. NEVER call user_can() / current_user_can()
+	 *        → they fire map_meta_cap again → recursion.
+	 *
+	 *   2. NEVER call wc_get_order()
+	 *        → WC checks permissions on the order → fires map_meta_cap → recursion.
+	 *
+	 *   3. Use a static re-entrance guard as a safety net.
 	 */
-	private function get_store_ids_by_owner( $user_id ) {
-		return get_posts(
-			array(
-				'post_type'   => 'pickup_store',
-				'fields'      => 'ids',
-				'meta_key'    => '_assigned_shop_owner',
-				'meta_value'  => $user_id,
-				'numberposts' => -1,
-			)
-		);
+	public function map_order_edit_caps( $caps, $cap, $user_id, $args ) {
+
+		// ── Re-entrance guard (safety net) ──────────────────────
+		static $in_progress = false;
+		if ( $in_progress ) {
+			error_log( '[WSP_Shop_Owner] Re-entrance detected in map_order_edit_caps, returning caps' );
+			return $caps;
+		}
+
+		// ── Only care about these two caps ───────────────────────
+		if ( ! in_array( $cap, array( 'edit_post', 'edit_shop_order' ), true ) ) {
+			return $caps;
+		}
+
+		$order_id = isset( $args[0] ) ? absint( $args[0] ) : 0;
+		if ( ! $order_id ) {
+			return $caps;
+		}
+
+		error_log( '[WSP_Shop_Owner] map_order_edit_caps called - Cap: ' . $cap . ', User ID: ' . $user_id . ', Order ID: ' . $order_id );
+
+		// ── Role check — read WP_User directly, NO user_can() ───
+		$user = new WP_User( $user_id );
+
+		if ( in_array( 'administrator', (array) $user->roles, true ) ) {
+			error_log( '[WSP_Shop_Owner] User is administrator, allowing access' );
+			return $caps;   // admins pass through unconditionally
+		}
+
+		if ( ! in_array( 'shop_owner', (array) $user->roles, true ) ) {
+			error_log( '[WSP_Shop_Owner] User is not shop_owner, passing through' );
+			return $caps;   // not a shop_owner — not our business, pass through
+		}
+
+		error_log( '[WSP_Shop_Owner] User is shop_owner, checking store ownership' );
+
+		// ── Lock before any DB call ──────────────────────────────
+		$in_progress = true;
+
+		// ── Read _pickup_store_id straight from DB, no wc_get_order() ──
+		$store_id = (int) $this->get_order_meta_direct( $order_id, '_pickup_store_id' );
+		error_log( '[WSP_Shop_Owner] Store ID for order ' . $order_id . ': ' . $store_id );
+
+		// ── Unlock immediately ────────────────────────────────────
+		$in_progress = false;
+
+		if ( ! $store_id ) {
+			error_log( '[WSP_Shop_Owner] No store ID found for order, denying access' );
+			return array( 'do_not_allow' );
+		}
+
+		// ── Ownership check ──────────────────────────────────────
+		$allowed_stores = array_map( 'intval', $this->get_store_ids_by_owner( $user_id ) );
+		error_log( '[WSP_Shop_Owner] Allowed stores for user ' . $user_id . ': ' . print_r( $allowed_stores, true ) );
+
+		if ( ! in_array( $store_id, $allowed_stores, true ) ) {
+			error_log( '[WSP_Shop_Owner] Store ID ' . $store_id . ' not in allowed stores, denying access' );
+			return array( 'do_not_allow' );
+		}
+
+		error_log( '[WSP_Shop_Owner] Access granted for order ' . $order_id );
+		return $caps;   // allowed
 	}
 
-	/**
-	 * Prevent shop owners from updating protected metadata.
-	 *
-	 * Blocks shop owners from modifying admin-only fields like assignment and zone mappings.
-	 * Allows administrators to modify all metadata.
-	 *
-	 * @param mixed  $check       The result of any previous filters.
-	 * @param int    $object_id   The ID of the object.
-	 * @param string $meta_key    The key of the metadata being updated.
-	 * @param mixed  $meta_value  The new value for the metadata.
-	 * @param mixed  $prev_value  The previous value of the metadata.
-	 * @return mixed False to prevent the update, or original check value to allow.
-	 */
-	public function prevent_shop_owner_meta_change( $check, $object_id, $meta_key, $meta_value, $prev_value ) {
-		$protected_keys = array( '_assigned_shop_owner', '_pickup_zone_id' );
-
-		if ( ! in_array( $meta_key, $protected_keys, true ) ) {
-			return $check;
-		}
-
-		// Block shop owners, allow admins
-		if ( current_user_can( 'edit_pickup_store' ) && ! current_user_can( 'manage_options' ) ) {
-			error_log(
-				sprintf(
-					'WSP SECURITY: User %d tried to modify %s on store %d',
-					get_current_user_id(),
-					$meta_key,
-					$object_id
-				)
-			);
-			return false;
-		}
-
-		return $check;
-	}
-
-	/**
-	 * Prevent shop owners from adding protected metadata.
-	 *
-	 * Blocks shop owners from adding protected fields. Allows administrators to add any metadata.
-	 *
-	 * @param mixed  $check      The result of any previous filters.
-	 * @param int    $object_id  The ID of the object.
-	 * @param string $meta_key   The key of the metadata being added.
-	 * @param mixed  $meta_value The value of the metadata.
-	 * @param bool   $unique     Whether the metadata key should be unique.
-	 * @return mixed False to prevent the addition, or original check value to allow.
-	 */
-	public function wsp_prevent_shop_owner_add_meta( $check, $object_id, $meta_key, $meta_value, $unique ) {
-		$protected_keys = array( '_assigned_shop_owner', '_pickup_zone_id' );
-
-		if ( in_array( $meta_key, $protected_keys, true ) &&
-			current_user_can( 'edit_pickup_store' ) &&
-			! current_user_can( 'manage_options' ) ) {
-			return false;
-		}
-
-		return $check;
-	}
-
-	/**
-	 * Hide admin menus for shop owner users.
-	 *
-	 * Removes certain admin menu items for shop owners while keeping them visible to administrators.
-	 * Hides WooCommerce settings, reports, and tools menus.
-	 *
-	 * @return void
-	 */
-	public function cleanup_admin_menus() {
-		// Only for shop owners, not admins
-		if ( ! current_user_can( 'edit_pickup_store' ) || current_user_can( 'manage_options' ) ) {
-			return;
-		}
-
-		remove_menu_page( 'woocommerce-settings' );
-		remove_menu_page( 'woocommerce-reports' );
-		remove_menu_page( 'tools.php' );
-	}
-
-	public function block_unassigned_access() {
-		if ( ! is_admin() ) {
-			return;
-		}
-
-		if ( ! isset( $_GET['post'], $_GET['action'] ) ) {
-			return;
-		}
-
-		if ( $_GET['action'] !== 'edit' ) {
-			return;
-		}
-
-		$post_id = absint( $_GET['post'] );
-		if ( get_post_type( $post_id ) !== 'pickup_store' ) {
-			return;
-		}
+	// ── Status whitelist ────────────────────────────────────────
+	public function allow_shop_owner_order_statuses( $statuses, $order ) {
+		error_log( '[WSP_Shop_Owner] allow_shop_owner_order_statuses called' );
 
 		if ( current_user_can( 'manage_options' ) ) {
-			return;
+			error_log( '[WSP_Shop_Owner] User is admin, returning all statuses' );
+			return $statuses;
 		}
 
-		$assigned_owner = get_post_meta( $post_id, '_assigned_shop_owner', true );
-		if ( $assigned_owner != get_current_user_id() ) {
-			wp_die(
-				__( 'You do not have permission to edit this store.', 'woo-store-plugin' ),
-				__( 'Permission Denied', 'woo-store-plugin' ),
-				array( 'response' => 403 )
-			);
+		if ( current_user_can( 'edit_shop_orders' ) ) {
+			error_log( '[WSP_Shop_Owner] User can edit shop orders, returning limited statuses' );
+			return array( 'on-hold', 'processing', 'completed' );
 		}
+
+		error_log( '[WSP_Shop_Owner] Returning default statuses' );
+		return $statuses;
+	}
+
+	// ── Helpers ─────────────────────────────────────────────────
+
+	private function get_store_ids_by_owner( $user_id ) {
+		error_log( '[WSP_Shop_Owner] get_store_ids_by_owner called for user: ' . $user_id );
+		$store_ids = get_posts(
+			array(
+				'post_type'      => 'pickup_store',
+				'fields'         => 'ids',
+				'meta_key'       => '_assigned_shop_owner',
+				'meta_value'     => $user_id,
+				'posts_per_page' => -1,
+			)
+		);
+		error_log( '[WSP_Shop_Owner] Found ' . count( $store_ids ) . ' stores for user ' . $user_id . ': ' . print_r( $store_ids, true ) );
+		return $store_ids;
+	}
+
+	/**
+	 * Read order meta directly from the database.
+	 *
+	 * Tries the HPOS table (wc_orders_meta) first, then falls back to
+	 * legacy post_meta.  Does ZERO permission checks, so it is safe to
+	 * call from inside map_meta_cap.
+	 */
+	private function get_order_meta_direct( $order_id, $key ) {
+		global $wpdb;
+		error_log( '[WSP_Shop_Owner] get_order_meta_direct called for order: ' . $order_id . ', key: ' . $key );
+
+		// HPOS table (WooCommerce 8+)
+		$table = $wpdb->prefix . 'wc_orders_meta';
+		$value = $wpdb->get_var(
+			$wpdb->prepare(
+				"SELECT meta_value FROM {$table} WHERE order_id = %d AND meta_key = %s LIMIT 1",
+				$order_id,
+				$key
+			)
+		);
+
+		if ( $value !== null ) {
+			error_log( '[WSP_Shop_Owner] Found value in HPOS table: ' . $value );
+			return $value;
+		}
+
+		// Legacy post_meta fallback
+		$legacy_value = get_post_meta( $order_id, $key, true );
+		error_log( '[WSP_Shop_Owner] HPOS value not found, using legacy post_meta: ' . $legacy_value );
+		return $legacy_value;
 	}
 }

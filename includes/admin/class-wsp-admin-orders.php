@@ -87,16 +87,16 @@ class WSP_Admin_Orders {
 		: '';
 
 		?>
-	<label for="wsp_pickup_date" style="margin-left:10px;">
+		<label for="wsp_pickup_date" style="margin-left:10px;">
 		<?php esc_html_e( 'Pickup Date:', 'woo-store-plugin' ); ?>
-	</label>
-	<input
+		</label>
+		<input
 		type="date"
 		id="wsp_pickup_date"
 		name="wsp_pickup_date"
 		value="<?php echo esc_attr( $value ); ?>"
 		style="margin-left:5px;"
-	/>
+		/>
 		<?php
 	}
 
@@ -238,4 +238,46 @@ class WSP_Admin_Orders {
 
 		return $clauses;
 	}
+
+	function wsp_admin_edit_pickup_date_field( $order ) {
+
+	// Only pickup orders
+	foreach ( $order->get_shipping_methods() as $method ) {
+		if ( $method->get_method_id() === 'wsp_store_pickup' ) {
+
+			$value = $order->get_meta( '_pickup_date' );
+
+			woocommerce_wp_text_input(
+				array(
+					'id'    => '_pickup_date',
+					'label' => 'Pickup Date',
+					'type'  => 'date',
+					'value' => $value,
+				)
+			);
+			break;
+		}
+	}
+}
+
+	function wsp_save_admin_pickup_date( $order_id ) {
+
+	if ( empty( $_POST['_pickup_date'] ) ) {
+		return;
+	}
+
+	$order = wc_get_order( $order_id );
+	if ( ! $order ) {
+		return;
+	}
+
+	$new_date = sanitize_text_field( wp_unslash( $_POST['_pickup_date'] ) );
+
+	$order->update_meta_data( '_pickup_date', $new_date );
+	$order->save();
+
+	// OPTIONAL: reschedule reminder if you implemented per-order cron
+	wp_clear_scheduled_hook( 'wsp_send_pickup_reminder_single', array( $order_id ) );
+	wsp_schedule_pickup_reminder_for_order( $order_id );
+}
 }
